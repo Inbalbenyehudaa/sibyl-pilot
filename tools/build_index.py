@@ -696,7 +696,7 @@ const DATA_FILES = {
 __DATA__
 };
 
-const POLICY_FILES = {
+let POLICY_FILES = {
 __POLICIES__
 };
 
@@ -815,9 +815,9 @@ const MAX_TOKENS_SIBYL = 32000;
 /* word from Discovery row 9 and Design row 1.                         */
 /* ------------------------------------------------------------------ */
 
-const SIBYL_PROMPT = `__SIBYL_PROMPT__`;
+let SIBYL_PROMPT = `__SIBYL_PROMPT__`;
 
-const REVIEWER_PROMPT = `__REVIEWER_PROMPT__`;
+let REVIEWER_PROMPT = `__REVIEWER_PROMPT__`;
 
 /* ------------------------------------------------------------------ */
 /* CSV parsing — quoted fields, embedded commas and newlines.          */
@@ -858,14 +858,6 @@ function toObjects(text) {
   return { headers: headers, rows: out };
 }
 
-/* Parse every CSV once. Markdown files stay raw text. */
-const DB = {};
-const RAW_MD = {};
-for (const name in DATA_FILES) {
-  if (name.endsWith('.csv')) DB[name] = toObjects(DATA_FILES[name]);
-  else RAW_MD[name] = DATA_FILES[name];
-}
-
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -904,12 +896,59 @@ function parseSignals(md) {
   if (key) briefs[key] = buf.join('\\n').trim();
   return briefs;
 }
-const SIGNALS = parseSignals(RAW_MD['deal_signals.md'] || '');
-
 /* Policy section headings, so we can show each file is real and sectioned. */
 function headings(md) {
   return md.split('\\n').filter(l => /^#{1,3}\\s/.test(l)).map(l => l.replace(/^#+\\s*/, ''));
 }
+
+/* ------------------------------------------------------------------ */
+/* The data store — ONE seam between the sources and every reader.     */
+/* buildDataStore parses a {data, policies, prompts} payload; today    */
+/* that payload is the embedded constants, and an api mode can hand    */
+/* in a fetched copy of the exact same shape. applyDataStore swaps it  */
+/* in BEFORE init runs, so the 30+ DB[...] read sites never know.      */
+/* ------------------------------------------------------------------ */
+
+const EMBEDDED_SOURCES = {
+  data: DATA_FILES,
+  policies: POLICY_FILES,
+  prompts: { sibyl: SIBYL_PROMPT, reviewer: REVIEWER_PROMPT }
+};
+
+function buildDataStore(sources) {
+  const db = {}, rawMd = {};
+  const data = (sources && sources.data) || {};
+  for (const name in data) {
+    if (name.endsWith('.csv')) db[name] = toObjects(data[name]);
+    else rawMd[name] = data[name];
+  }
+  return {
+    DB: db,
+    RAW_MD: rawMd,
+    SIGNALS: parseSignals(rawMd['deal_signals.md'] || ''),
+    POLICIES: (sources && sources.policies) || {},
+    SIBYL_PROMPT: (sources && sources.prompts && sources.prompts.sibyl) || '',
+    REVIEWER_PROMPT: (sources && sources.prompts && sources.prompts.reviewer) || ''
+  };
+}
+
+let DB = {};
+let RAW_MD = {};
+let SIGNALS = {};
+
+function applyDataStore(store) {
+  DB = store.DB;
+  RAW_MD = store.RAW_MD;
+  SIGNALS = store.SIGNALS;
+  POLICY_FILES = store.POLICIES;
+  SIBYL_PROMPT = store.SIBYL_PROMPT;
+  REVIEWER_PROMPT = store.REVIEWER_PROMPT;
+  /* The citation vocabulary is derived from the store; a swapped store
+     invalidates the memo (defined later in the agent block, hence the guard). */
+  if (typeof CITE_VOCAB_MEMO !== 'undefined') CITE_VOCAB_MEMO = null;
+}
+
+applyDataStore(buildDataStore(EMBEDDED_SOURCES));
 
 __AGENT_BLOCK__
 

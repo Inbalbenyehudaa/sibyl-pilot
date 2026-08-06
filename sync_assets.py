@@ -32,8 +32,8 @@ def collect(folder: pathlib.Path, suffixes) -> dict:
             out[p.name] = p.read_text(encoding="utf-8")
     return out
 
-def object_block(name: str, files: dict) -> str:
-    lines = [f"const {name} = {{"]
+def object_block(name: str, files: dict, kw: str = "const") -> str:
+    lines = [f"{kw} {name} = {{"]
     for i, (fn, body) in enumerate(files.items()):
         comma = "," if i < len(files) - 1 else ""
         lines.append(f'  "{fn}": `{js_literal(body)}`{comma}')
@@ -54,14 +54,14 @@ def eval_expected() -> dict:
                 out[cid] = (row.get("Expected Behavior") or "").strip()
     return out
 
-def literal_block(name: str, body: str) -> str:
-    return f"const {name} = `{js_literal(body)}`;"
+def literal_block(name: str, body: str, kw: str = "const") -> str:
+    return f"{kw} {name} = `{js_literal(body)}`;"
 
 def find_block(html: str, name: str):
-    """Return (start, end) char offsets of `const NAME = ...;` including terminator."""
-    m = re.search(r"^const " + name + r"\s*=\s*(\{|`)", html, re.M)
+    """Return (start, end) char offsets of `const|let NAME = ...;` including terminator."""
+    m = re.search(r"^(?:const|let) " + name + r"\s*=\s*(\{|`)", html, re.M)
     if not m:
-        raise SystemExit(f"could not find `const {name}` in index.html")
+        raise SystemExit(f"could not find `const|let {name}` in index.html")
     if m.group(1) == "{":
         end = html.index("\n};", m.start()) + len("\n};")
     else:
@@ -80,12 +80,12 @@ def main() -> int:
 
     blocks = {
         "DATA_FILES":      object_block("DATA_FILES", collect(ROOT / "data", {".csv", ".md"})),
-        "POLICY_FILES":    object_block("POLICY_FILES", collect(ROOT / "policies", {".md"})),
+        "POLICY_FILES":    object_block("POLICY_FILES", collect(ROOT / "policies", {".md"}), kw="let"),
         # .rstrip() matches tools/build_index.py. Without it the two generators
         # disagree by one trailing newline and --check reports STALE forever,
         # which is how a real drift went unnoticed on 2026-08-03.
-        "SIBYL_PROMPT":    literal_block("SIBYL_PROMPT", (ROOT / "sibyl_prompt.md").read_text(encoding="utf-8").rstrip()),
-        "REVIEWER_PROMPT": literal_block("REVIEWER_PROMPT", (ROOT / "deal_reviewer_prompt.md").read_text(encoding="utf-8").rstrip()),
+        "SIBYL_PROMPT":    literal_block("SIBYL_PROMPT", (ROOT / "sibyl_prompt.md").read_text(encoding="utf-8").rstrip(), kw="let"),
+        "REVIEWER_PROMPT": literal_block("REVIEWER_PROMPT", (ROOT / "deal_reviewer_prompt.md").read_text(encoding="utf-8").rstrip(), kw="let"),
         # Prompt 16 — the evals table's Expected column, and the ONLY part of
         # the held-out file that ships. Covered here as well as in
         # build_index.py, or editing an expectation and running sync_assets.py

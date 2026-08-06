@@ -288,7 +288,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'parseRefusal, detectSubmitClaim, runStatusBand, REFUSAL_FIELDS, missingFieldNote, ' +
   'SIBYL_PROMPT, POLICY_FILES, reviewerSystemPrompt, ' +
   'DATA_FILES, READING_FIELDS, openGate, logRun, ' +
-  'CITE_VOCAB, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS, ' +
+  'citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS, ' +
   'setWorkState, renderWorkState, PRODUCT_LINE, getWorkState: () => WORK_STATE, ' +
   'EVAL_CHIPS, loadEvalCase, renderEvalChips, setFault, clearFault, sourceMissing, ' +
   'lastWeekRows, getFault: () => EVAL_FAULT, missingRunSources, RUN_CRITICAL_SOURCES, ' +
@@ -325,7 +325,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         dealGateContext, escalationToSibyl, escalationRepNote, repNotesPending, renderDealGate,
         dealGateReset, DEAL_CATEGORIES, getApplied,
         DATA_FILES, READING_FIELDS, openGate, logRun,
-        CITE_VOCAB, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
+        citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
         REVIEWER_PROMPT,
         runWeeklyForecast, RUN_LOG, runLogRows, pendingCount, currentCaseLabel,
         gateApprove, gateSaveEdit, gateEscalate, gateComplete, gateStatus, closeGate,
@@ -422,7 +422,7 @@ function check(name, cond, detail) {
     /### M1\.1 — "Commit"/.test(sys) &&
     /mostly negotiated but still require final approval/.test(sys) &&
     /### M1\.4 — "Omit"/.test(sys) && /### M1\.5 — "Pipeline"/.test(sys) &&
-    /^const REVIEWER_PROMPT/m.test(js) && js.indexOf('{{M1_FORECAST_CATEGORIES}}') !== -1);
+    /^let REVIEWER_PROMPT/m.test(js) && js.indexOf('{{M1_FORECAST_CATEGORIES}}') !== -1);
   check('4g both reviewer call sites send the assembled prompt, not the raw file',
     (js.match(/callAgent\(MODEL_REVIEWER, reviewerSystemPrompt\(\), /g) || []).length === 2 &&
     (js.match(/callAgent\(MODEL_REVIEWER, REVIEWER_PROMPT, /g) || []).length === 0);
@@ -1474,7 +1474,7 @@ function check(name, cond, detail) {
      That spot-check is automated here and at run time — fabricated citations
      are the failure that reads as rigour, so nothing should rest on catching
      them by eye. */
-  const V = CITE_VOCAB;
+  const V = citeVocab();
   check('17a the citable vocabulary is derived from the files, not hard-coded',
     V.rules['M2.5a'] && V.rules['M10.6'] && V.rules['S0.2'] && V.rules['SKILL 03'] &&
     V.rules['M1.1'] === 'forecast_methodology.md' && V.rules['S0.2'] === 'SKILL.md' &&

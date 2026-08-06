@@ -9485,7 +9485,7 @@ Ian Lockwood,13,,,,100%`,
 `
 };
 
-const POLICY_FILES = {
+let POLICY_FILES = {
   "SKILL.md": `---
 name: l3-forecast-walkup
 description: Build a front-line manager (L3) weekly gross forecast — the number AND the notes — using the five-component Forecast Walk-Up methodology. Use this skill whenever a sales manager asks to build, update, submit, or sanity-check their forecast, forecast call, walk-up, forecast notes, Gross Forecast Panel submission, or weekly forecast — even if they just say "help me with my forecast" or share deal data and ask what number to call. Also use it to review or challenge an existing forecast for methodology violations (hedging, weighted deals, missing notes).
@@ -9874,7 +9874,7 @@ const MAX_TOKENS_SIBYL = 32000;
 /* word from Discovery row 9 and Design row 1.                         */
 /* ------------------------------------------------------------------ */
 
-const SIBYL_PROMPT = `You are Sibyl, a weekly sales-forecast agent. Your tagline is "the number you can defend", and it is a working instruction: every figure you produce is traceable to something in your context.
+let SIBYL_PROMPT = `You are Sibyl, a weekly sales-forecast agent. Your tagline is "the number you can defend", and it is a working instruction: every figure you produce is traceable to something in your context.
 
 ## ROLE
 
@@ -9971,7 +9971,7 @@ Maya reviews the readings one deal at a time and may approve, re-categorise, or 
 
 **Do not agree with it to be agreeable.** An escalation is her asking what you think. Where the evidence argues against her call, say so plainly in deals_challenge_list, cite it, and log the dissent in disagreement_register — that field exists for exactly this. Her overrides are hypotheses, not lessons: nothing changes in your calibration until the deal resolves and the disagreement has a winner. Where her overrides keep winning, adapt toward her pattern; where the draft keeps winning, hold your number, re-flag the deal, and cite the track record [decisions_log.csv]. Softening toward Maya against the record is the sycophancy failure — the worst thing you can do. A disagreement you cannot close ends with the specific evidence that would close it.`;
 
-const REVIEWER_PROMPT = `You are the deal reviewer, a sub-worker inside Sibyl's weekly forecast run at Vantera.
+let REVIEWER_PROMPT = `You are the deal reviewer, a sub-worker inside Sibyl's weekly forecast run at Vantera.
 
 ## ROLE
 
@@ -10122,14 +10122,6 @@ function toObjects(text) {
   return { headers: headers, rows: out };
 }
 
-/* Parse every CSV once. Markdown files stay raw text. */
-const DB = {};
-const RAW_MD = {};
-for (const name in DATA_FILES) {
-  if (name.endsWith('.csv')) DB[name] = toObjects(DATA_FILES[name]);
-  else RAW_MD[name] = DATA_FILES[name];
-}
-
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -10168,12 +10160,59 @@ function parseSignals(md) {
   if (key) briefs[key] = buf.join('\n').trim();
   return briefs;
 }
-const SIGNALS = parseSignals(RAW_MD['deal_signals.md'] || '');
-
 /* Policy section headings, so we can show each file is real and sectioned. */
 function headings(md) {
   return md.split('\n').filter(l => /^#{1,3}\s/.test(l)).map(l => l.replace(/^#+\s*/, ''));
 }
+
+/* ------------------------------------------------------------------ */
+/* The data store — ONE seam between the sources and every reader.     */
+/* buildDataStore parses a {data, policies, prompts} payload; today    */
+/* that payload is the embedded constants, and an api mode can hand    */
+/* in a fetched copy of the exact same shape. applyDataStore swaps it  */
+/* in BEFORE init runs, so the 30+ DB[...] read sites never know.      */
+/* ------------------------------------------------------------------ */
+
+const EMBEDDED_SOURCES = {
+  data: DATA_FILES,
+  policies: POLICY_FILES,
+  prompts: { sibyl: SIBYL_PROMPT, reviewer: REVIEWER_PROMPT }
+};
+
+function buildDataStore(sources) {
+  const db = {}, rawMd = {};
+  const data = (sources && sources.data) || {};
+  for (const name in data) {
+    if (name.endsWith('.csv')) db[name] = toObjects(data[name]);
+    else rawMd[name] = data[name];
+  }
+  return {
+    DB: db,
+    RAW_MD: rawMd,
+    SIGNALS: parseSignals(rawMd['deal_signals.md'] || ''),
+    POLICIES: (sources && sources.policies) || {},
+    SIBYL_PROMPT: (sources && sources.prompts && sources.prompts.sibyl) || '',
+    REVIEWER_PROMPT: (sources && sources.prompts && sources.prompts.reviewer) || ''
+  };
+}
+
+let DB = {};
+let RAW_MD = {};
+let SIGNALS = {};
+
+function applyDataStore(store) {
+  DB = store.DB;
+  RAW_MD = store.RAW_MD;
+  SIGNALS = store.SIGNALS;
+  POLICY_FILES = store.POLICIES;
+  SIBYL_PROMPT = store.SIBYL_PROMPT;
+  REVIEWER_PROMPT = store.REVIEWER_PROMPT;
+  /* The citation vocabulary is derived from the store; a swapped store
+     invalidates the memo (defined later in the agent block, hence the guard). */
+  if (typeof CITE_VOCAB_MEMO !== 'undefined') CITE_VOCAB_MEMO = null;
+}
+
+applyDataStore(buildDataStore(EMBEDDED_SOURCES));
 
 /* ------------------------------------------------------------------ */
 /* CONTEXT ASSEMBLY — the deal-reviewer sub-worker                     */
@@ -10798,7 +10837,15 @@ function citationVocabulary() {
     'decisions_log.csv, deals_current.csv and deals_last_week.csv';
   return { rules: rules, deals: deals, files: files };
 }
-const CITE_VOCAB = citationVocabulary();
+/* Memoized, not a top-level const: the vocabulary reads DB and the file
+   constants, and a fetched data source (P1.x) must be able to land before
+   the first read. First caller builds it; everyone after gets the memo. */
+var CITE_VOCAB_MEMO = null;  /* var, not let: applyDataStore probes it with
+                                typeof before this line runs (TDZ would throw) */
+function citeVocab() {
+  if (!CITE_VOCAB_MEMO) CITE_VOCAB_MEMO = citationVocabulary();
+  return CITE_VOCAB_MEMO;
+}
 
 /* What counts as a citation at all. Deliberately narrow: the health briefs are
    full of "[44 emails, most recent Jul 24]", and treating that as a broken
@@ -10819,9 +10866,9 @@ function normaliseCitation(raw) {
 }
 
 function resolveCitation(c) {
-  if (c.kind === 'rule') return CITE_VOCAB.rules[c.token] || '';
-  if (c.kind === 'deal') return CITE_VOCAB.deals[c.token] || '';
-  if (c.kind === 'file') return CITE_VOCAB.files[c.token] || '';
+  if (c.kind === 'rule') return citeVocab().rules[c.token] || '';
+  if (c.kind === 'deal') return citeVocab().deals[c.token] || '';
+  if (c.kind === 'file') return citeVocab().files[c.token] || '';
   return '';
 }
 

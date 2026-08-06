@@ -621,7 +621,15 @@ function citationVocabulary() {
     'decisions_log.csv, deals_current.csv and deals_last_week.csv';
   return { rules: rules, deals: deals, files: files };
 }
-const CITE_VOCAB = citationVocabulary();
+/* Memoized, not a top-level const: the vocabulary reads DB and the file
+   constants, and a fetched data source (P1.x) must be able to land before
+   the first read. First caller builds it; everyone after gets the memo. */
+var CITE_VOCAB_MEMO = null;  /* var, not let: applyDataStore probes it with
+                                typeof before this line runs (TDZ would throw) */
+function citeVocab() {
+  if (!CITE_VOCAB_MEMO) CITE_VOCAB_MEMO = citationVocabulary();
+  return CITE_VOCAB_MEMO;
+}
 
 /* What counts as a citation at all. Deliberately narrow: the health briefs are
    full of "[44 emails, most recent Jul 24]", and treating that as a broken
@@ -642,9 +650,9 @@ function normaliseCitation(raw) {
 }
 
 function resolveCitation(c) {
-  if (c.kind === 'rule') return CITE_VOCAB.rules[c.token] || '';
-  if (c.kind === 'deal') return CITE_VOCAB.deals[c.token] || '';
-  if (c.kind === 'file') return CITE_VOCAB.files[c.token] || '';
+  if (c.kind === 'rule') return citeVocab().rules[c.token] || '';
+  if (c.kind === 'deal') return citeVocab().deals[c.token] || '';
+  if (c.kind === 'file') return citeVocab().files[c.token] || '';
   return '';
 }
 
