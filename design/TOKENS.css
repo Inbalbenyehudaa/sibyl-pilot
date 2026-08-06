@@ -1,0 +1,385 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SIBYL — DESIGN TOKENS
+   Kit v0.3, retuned to DESIGN.md (the Stripi-inspired language).
+
+   THIS FILE IS THE DESIGN. Every value below traces to a role in
+   DESIGN.md — colours to its palette, type to its hierarchy table,
+   radii and spacing to its scales. Nothing in the app may declare a
+   colour, a font size or a tracking value of its own: if a rule needs
+   one, it belongs here first.
+
+   RULES:
+   - Inline this file into index.html. Use ONLY these tokens.
+   - Thin weight is the brand: display tiers render at 300, never 400+.
+   - Negative tracking is the signature: size and tracking travel together.
+   - Tabular figures (tnum) on every money / numeric cell.
+   - ss01 is on globally, at the body element.
+   - No emoji as icons.
+   - Skins switch by setting data-skin="ops" | "studio" | "term" on <html>.
+   - Body text never below 13px (--fs-caption). 11px and 10px exist for
+     fine print and all-caps eyebrows ONLY — never for prose.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── TYPE ────────────────────────────────────────────────────────
+     Sohne is proprietary; SF Pro Display at thin weights is the
+     documented fallback, so this file stays self-contained (no webfont
+     fetch, no CDN). Inter is listed after it for non-Apple machines. */
+  --font-ui: sohne-var, "Sohne", "SF Pro Display", -apple-system, BlinkMacSystemFont, Inter, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Every role in the spec's hierarchy, size AND tracking together —
+     they are one decision. A size used without its tracking loses the
+     signature, so nothing in this app may write a raw px font-size. */
+  --fs-display-xxl: 56px;  --track-display-xxl: -1.4px;   /* hero headline    */
+  --fs-display-xl:  48px;  --track-display-xl:  -0.96px;  /* section opener   */
+  --fs-display-lg:  32px;  --track-display-lg:  -0.64px;  /* card title       */
+  --fs-display-md:  26px;  --track-display-md:  -0.26px;  /* compact title    */
+  --fs-heading-lg:  22px;  --track-heading-lg:  -0.22px;  /* tier name        */
+  --fs-heading-md:  20px;  --track-heading-md:  -0.2px;   /* sub-heading      */
+  --fs-heading-sm:  18px;  --track-heading-sm:  0;        /* mini-section     */
+  --fs-body-lg:     16px;  --track-body:        0;        /* marketing lead   */
+  --fs-body:        15px;                                 /* default UI body  */
+  --fs-tabular:     14px;  --track-tabular:     -0.42px;  /* money / numerics */
+  --fs-caption:     13px;  --track-caption:     -0.39px;  /* helper, labels   */
+  --fs-micro:       11px;  --track-micro:       0;        /* fine print       */
+  --fs-micro-cap:   10px;  --track-micro-cap:   0.1px;    /* all-caps eyebrow */
+
+  /* Aliases. ~40 call sites across the app were written against the
+     original five-step scale; mapping them onto the roles keeps this a
+     token change rather than a rewrite (the same move section 32 made). */
+  --fs-0: var(--fs-caption);
+  --fs-1: var(--fs-body);
+  --fs-2: var(--fs-body-lg);
+  --fs-3: var(--fs-heading-md);
+  --fs-4: var(--fs-display-md);
+  --lh: 1.4;
+
+  /* Thin weight IS the signature — the family ships 300 and 400, and
+     nothing here may reach for a heavier one. Display always 300;
+     buttons, captions and eyebrows 400. */
+  --w-display: 300;
+  --w-body: 300;
+  --w-strong: 400;
+  --w-label: 400;
+
+  /* ── SPACING & SHAPE ──────────────────────────────────────────── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 64px;
+  --radius-xs: 4px;      /* hairline tags, table chrome */
+  --radius-sm: 6px;      /* form inputs */
+  --radius-md: 8px;      /* compact cards, alerts */
+  --radius: 12px;        /* cards, panels */
+  --radius-xl: 16px;     /* product-mockup chrome */
+  --radius-pill: 9999px; /* every button and tag */
+  --border-w: 1px;
+
+  /* ── BRAND HUES — available to every skin ─────────────────────── */
+  --accent-deep: #4434d4;     /* gradient mid-stop, hover */
+  --accent-press: #2e2b8c;    /* pressed lift */
+  --accent-soft: #665efd;     /* product-UI accents */
+  --accent-subdued: #b9b9f9;  /* pale fill for soft tags */
+  --brand-dark: #1c1e54;      /* deep navy: inverted surfaces */
+  --cream: #f5e9d4;           /* the warm interlude */
+  --ruby: #ea2261;            /* gradient accent — never a button */
+  --magenta: #f96bee;         /* brighter gradient stop */
+  --lemon: #9b6829;           /* warm sherbet stop */
+  --shadow-2: 0 8px 24px rgba(0,55,112,.08), 0 2px 6px rgba(0,55,112,.04);
+
+  /* status colors — mapped onto the brand's own stops wherever one exists:
+     danger is ruby, warn is lemon, info is the indigo. Green has no stop in
+     the palette and pass/fail needs one, so it is a single muted addition. */
+  --ok: #0B7A55;             /* pass / approved */
+  --warn: var(--lemon);      /* needs work / pending */
+  --danger: var(--ruby);     /* fail / escalate / refused */
+  --info: #533afd;           /* running / info — the indigo */
+}
+
+/* ── SKIN: OPERATIONS (dark) — default ─────────────────────────── */
+:root, [data-skin="ops"] {
+  --bg: #0F1420;         /* page */
+  --bg-raise: #171E2E;   /* panels, cards */
+  --bg-inset: #0B0F18;   /* wells, log */
+  --line: #263049;       /* borders */
+  --ink: #E8EDF7;        /* headings, primary text */
+  --ink-2: #9AA6BF;      /* secondary text */
+  --ink-3: #5E6A85;      /* meta */
+  --accent: #6C8CFF;     /* brand accent: buttons, active states */
+  --accent-ink: #FFFFFF; /* text on accent */
+  --chip: #1E2740;       /* tags, chips */
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.55);
+  --font-body: var(--font-ui);
+}
+
+/* ── SKIN: STUDIO (light) — the financial-infrastructure surface ──
+      Canvas white, cool off-white page, deep-navy ink (never black), one
+      electric indigo reserved for CTAs and links. ──────────────────── */
+[data-skin="studio"] {
+  --bg: #F6F9FC;         /* canvas-soft — the page */
+  --bg-raise: #FFFFFF;   /* canvas — panels, cards */
+  --bg-inset: #F6F9FC;   /* wells, log, payload dumps */
+  --line: #E3E8EE;       /* hairline */
+  --line-input: #A8C3DE; /* cooler hairline, form fields only */
+  --ink: #0d253d;        /* deep navy — body text, never pure black */
+  --ink-2: #273951;      /* secondary text */
+  --ink-3: #64748d;      /* helper text, captions, table labels */
+  --ink-4: #61718a;      /* nav / chrome meta — ink-mute-2 */
+  --accent: #533afd;     /* indigo — CTA and link only, never body type */
+  --accent-ink: #FFFFFF;
+  --chip: #EEF1FE;       /* pale indigo tint for tags and chips */
+  --shadow: 0 1px 3px rgba(0,55,112,.08);
+  --shadow-2: 0 8px 24px rgba(0,55,112,.08), 0 2px 6px rgba(0,55,112,.04);
+  --font-body: var(--font-ui);
+}
+
+/* ── SKIN: TERMINAL (mono) ─────────────────────────────────────── */
+[data-skin="term"] {
+  --bg: #0C0F0C;
+  --bg-raise: #121712;
+  --bg-inset: #080B08;
+  --line: #223122;
+  --ink: #D7F5DC;
+  --ink-2: #8FBE97;
+  --ink-3: #567A5D;
+  --accent: #35D07F;
+  --accent-ink: #06130A;
+  --chip: #16301E;
+  --shadow: 0 0 0 1px rgba(53,208,127,.08), 0 12px 32px -14px rgba(0,0,0,.7);
+  --font-body: var(--font-mono);
+}
+
+/* ═══ BASE ═══ */
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--fs-1); line-height: var(--lh);
+  font-weight: var(--w-body);
+  font-feature-settings: "ss01";   /* the stylistic set, on globally */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ THE GRADIENT MESH ═══════════════════════════════════════════
+   The brand's primary depth medium: cream → sherbet → lavender →
+   indigo → ruby, washed across the upper third of the page, with the
+   product chrome floating above it on white. Painted as layered
+   radial blobs rather than a flat linear gradient — the real mesh is
+   organic, and a straight bar reads as a banner instead of weather.
+
+   ABSOLUTE, not fixed: the spec puts the mesh in the upper third of the
+   PAGE, so it scrolls away with the top of the document. Pinned to the
+   viewport it followed you down into a stage trace and painted colour
+   into the gutters beside a table of numbers. */
+body { position: relative; }
+body::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 340px;
+  z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(246,249,252,0) 38%, var(--bg) 96%),
+    radial-gradient(62% 130% at  4% -10%, #F5E9D4 0%, rgba(245,233,212,0) 62%),
+    radial-gradient(52% 120% at 26%  -6%, #F7D8AE 0%, rgba(247,216,174,0) 60%),
+    radial-gradient(56% 130% at 48% -14%, #DAD6FB 0%, rgba(218,214,251,0) 64%),
+    radial-gradient(50% 120% at 70%  -8%, #B9B9F9 0%, rgba(185,185,249,0) 62%),
+    radial-gradient(58% 130% at 92% -12%, #F9C6DF 0%, rgba(249,198,223,0) 64%),
+    var(--bg);
+}
+/* Only the light skin ships the mesh; the dark skins keep their flat page. */
+[data-skin="ops"] body::before, [data-skin="term"] body::before { display: none; }
+
+/* ═══ LAYOUT ═══ */
+/* The nav floats on the mesh: no fill, no rule under it — the wash is
+   the separation. */
+.topbar {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  background: transparent; border-bottom: 0;
+}
+.topbar .product {
+  font-size: var(--fs-heading-md); font-weight: var(--w-label);
+  letter-spacing: var(--track-heading-md); color: var(--ink);
+}
+.topbar .meta { color: var(--ink-3); font-size: var(--fs-0);
+  letter-spacing: var(--track-caption); margin-left: auto; }
+
+/* minmax(0, 1fr), NOT 1fr: a grid track defaults to a minimum of min-content,
+   so any wide child in the middle column — the scoreboard's five tiles were
+   the first — widens the whole grid and pushes the run-log rail off the right
+   edge of the page. The middle column may now shrink, and wide content
+   scrolls inside its own box as it already did for tables and traces. */
+.console {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr) 320px;
+  gap: var(--sp-5); padding: var(--sp-3) var(--sp-6) var(--sp-6);
+  align-items: start;
+  min-height: calc(100vh - 72px);
+}
+@media (max-width: 1100px) { .console { grid-template-columns: 1fr; } }
+
+/* Panels are the composited product-UI cards: white, hairline, 12px,
+   level-2 lift so they read as floating above the wash. */
+.panel {
+  background: var(--bg-raise); border: var(--border-w) solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow));
+}
+.panel-head {
+  padding: var(--sp-4) var(--sp-5); border-bottom: var(--border-w) solid var(--line);
+  font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap); text-transform: uppercase; color: var(--ink-3);
+}
+.panel-body { padding: var(--sp-5); }
+
+/* ═══ STAGE LABELS — the loop, named on screen ═══ */
+.stage {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+  color: var(--accent); margin: var(--sp-5) 0 var(--sp-2);
+}
+.stage::before {
+  content: attr(data-n); display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--accent); color: var(--accent-ink);
+  font-size: var(--fs-micro); font-weight: var(--w-strong); letter-spacing: var(--track-micro);
+}
+
+/* ═══ CARDS (case list) ═══ */
+.case-card {
+  padding: var(--sp-3) var(--sp-4); border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-md); background: var(--bg-raise);
+  cursor: pointer; margin-bottom: var(--sp-2);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.case-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.case-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.case-card .id { font-family: var(--font-mono); font-size: var(--fs-0); color: var(--ink-3);
+  font-variant-numeric: tabular-nums; }
+.case-card .title { font-weight: var(--w-strong); letter-spacing: var(--track-body); }
+
+/* ═══ CHIPS (one-click demo cases, citations) ═══ */
+/* pill-tag-soft: pale indigo fill, indigo-deep label, tight padding. */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: 4px 12px; border-radius: var(--radius-pill);
+  background: var(--chip); color: var(--ink-2);
+  border: var(--border-w) solid var(--line);
+  font-size: var(--fs-tabular); font-weight: var(--w-strong); cursor: pointer;
+  letter-spacing: var(--track-body); line-height: 1; white-space: nowrap;
+}
+.chip:hover { color: var(--accent-deep, var(--accent)); border-color: var(--accent); }
+/* A citation is a TAG, not a control — pill-tag-soft, to the letter. */
+.chip.cite { cursor: default; font-family: var(--font-mono);
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--accent-subdued); color: var(--accent-deep);
+  border-color: transparent;
+  font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap);
+  font-variant-numeric: tabular-nums; }
+.chip.cite:hover { color: var(--accent-deep); border-color: transparent; }
+
+/* ═══ OUTPUT FIELDS — labeled, judgeable in under a minute ═══ */
+.field { display: grid; grid-template-columns: 160px 1fr; gap: var(--sp-3); padding: var(--sp-2) 0; border-bottom: var(--border-w) solid var(--line); }
+.field:last-child { border-bottom: 0; }
+.field .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap); text-transform: uppercase; color: var(--ink-3); padding-top: 3px; }
+.field .v { color: var(--ink); }
+.field .v.why { color: var(--ink-2); font-style: italic; }
+
+/* ═══ STATUS BADGES ═══ */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: var(--radius-pill); white-space: nowrap;
+  font-size: var(--fs-0); font-weight: var(--w-label); letter-spacing: var(--track-body);
+}
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.badge.ok      { color: var(--ok);     background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.badge.warn    { color: var(--warn);   background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.badge.danger  { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.badge.info    { color: var(--info);   background: color-mix(in srgb, var(--info) 14%, transparent); }
+.badge.neutral { color: var(--ink-2);  background: var(--chip); }
+
+/* ═══ BUTTONS — the human gate ═══
+   Tight-radius pills, 8px 16px, label at weight 400. The filled indigo
+   is the only filled button on a surface: one per band, everything
+   else is the white secondary. */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: 8px 16px; border-radius: var(--radius-pill);
+  border: var(--border-w) solid var(--line);
+  background: var(--bg-raise); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--fs-2); font-weight: var(--w-strong);
+  line-height: 1; white-space: nowrap; cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--line); color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover:not(:disabled) { background: var(--accent-deep, var(--accent));
+  border-color: var(--accent-deep, var(--accent)); color: var(--accent-ink); }
+.btn.primary:active:not(:disabled) { background: var(--accent-press, var(--accent));
+  border-color: var(--accent-press, var(--accent)); }
+.btn.approve { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); }
+.btn.approve:hover:not(:disabled) { color: var(--accent-ink); }
+.btn.danger  { background: transparent; border-color: var(--danger); color: var(--danger); }
+.btn.danger:hover:not(:disabled) { background: var(--danger); border-color: var(--danger);
+  color: var(--accent-ink); }
+
+/* ═══ THE BOUNDARY LINE — quiet, permanent ═══ */
+.boundary-note {
+  font-size: var(--fs-0); color: var(--ink-3);
+  letter-spacing: var(--track-caption);
+  border-left: 2px solid var(--accent); padding-left: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+/* ═══ RUN LOG ═══ */
+.log {
+  background: var(--bg-inset); border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-md); padding: var(--sp-3);
+  font-family: var(--font-mono); font-size: var(--fs-0);
+  font-variant-numeric: tabular-nums;
+  max-height: 420px; overflow: auto;
+}
+.log .row { display: flex; gap: var(--sp-3); padding: 3px 0; color: var(--ink-2); }
+.log .row .t { color: var(--ink-3); flex: none; }
+.log .row .action-approve  { color: var(--ok); }
+.log .row .action-edit     { color: var(--warn); }
+.log .row .action-escalate { color: var(--danger); }
+
+/* ═══ EVALS ═══ */
+.evals-table { width: 100%; border-collapse: collapse; font-size: var(--fs-1); }
+.evals-table th {
+  text-align: left; font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+  color: var(--ink-3); padding: var(--sp-2) var(--sp-3); border-bottom: var(--border-w) solid var(--line);
+}
+.evals-table td { padding: var(--sp-3); border-bottom: var(--border-w) solid var(--line);
+  vertical-align: top; font-variant-numeric: tabular-nums; }
+
+.scoreboard { display: flex; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+.stat {
+  flex: 1; padding: var(--sp-5); text-align: center;
+  background: var(--bg-raise); border: var(--border-w) solid var(--line); border-radius: var(--radius);
+}
+/* Money and counts render tabular — the quiet financial-data signal. */
+.stat .n { font-size: var(--fs-4); font-weight: var(--w-display); line-height: 1.12;
+  letter-spacing: var(--track-display-md); font-variant-numeric: tabular-nums; }
+.stat .l { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+  letter-spacing: var(--track-micro-cap); text-transform: uppercase; color: var(--ink-3); }
+.stat.ok .n { color: var(--ok); } .stat.warn .n { color: var(--warn); } .stat.danger .n { color: var(--danger); }
+
+/* ═══ STATES ═══ */
+.thinking { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--info); font-weight: var(--w-strong); }
+.thinking::before { content: ""; width: 12px; height: 12px; border: 2px solid var(--info); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty {
+  padding: var(--sp-7) var(--sp-6); text-align: center; color: var(--ink-2);
+}
+/* The one display-tier headline in the app — thin, tight, editorial. */
+.empty .headline { font-size: var(--fs-display-lg); font-weight: var(--w-display); line-height: 1.1;
+  letter-spacing: var(--track-display-lg); color: var(--ink); margin-bottom: var(--sp-3); }
+
+.error-note {
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-md);
+  border: var(--border-w) solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger); font-size: var(--fs-1);
+}

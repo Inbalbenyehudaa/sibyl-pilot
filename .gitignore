@@ -1,0 +1,19 @@
+# Course material — not the product
+deploy-companion/
+SIBYL_BUILD_STATE.md
+03_DEVELOP.md
+AGENTS.md
+CLAUDE.md
+CLAUDE_CODE_SETUP_GUIDE.md
+DEBUGGING_GUIDE.md
+DEVELOP_PRD_TEMPLATE.md
+NORTHSTAR_HOME_EXAMPLE.md
+PATH_B_STRETCH.md
+PROMPT_PLAYBOOK.md
+START_HERE.md
+STUDENT_START_PROMPT.md
+archieved_Sibyl_prompt.md
+
+# Local tooling / OS
+.claude/
+.DS_Store
