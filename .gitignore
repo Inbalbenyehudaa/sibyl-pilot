@@ -17,3 +17,6 @@ archieved_Sibyl_prompt.md
 # Local tooling / OS
 .claude/
 .DS_Store
+
+# Local secrets — never committed
+.env
