@@ -25,7 +25,7 @@ The improvement stream, detached from the frozen course submission. Same rhythm 
 - P0.6 ✅ 376 checks green · sync clean · tagged `pilot-baseline`.
 - P0.7 ✅ This file.
 
-## Phase 1 — Data-source seam (embedded mode preserved)
+## Phase 1 — Data-source seam ✅ (done 2026-08-06; check total now 389)
 
 **P1.1 — Lazy citation vocabulary.**
 Make `citationVocabulary()` (agent_block.js:623) a memoized function instead of a top-level const; update call sites.

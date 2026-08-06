@@ -289,6 +289,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'SIBYL_PROMPT, POLICY_FILES, reviewerSystemPrompt, ' +
   'DATA_FILES, READING_FIELDS, openGate, logRun, ' +
   'citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS, ' +
+  'buildDataStore, EMBEDDED_SOURCES, resolveDataMode, ' +
   'setWorkState, renderWorkState, PRODUCT_LINE, getWorkState: () => WORK_STATE, ' +
   'EVAL_CHIPS, loadEvalCase, renderEvalChips, setFault, clearFault, sourceMissing, ' +
   'lastWeekRows, getFault: () => EVAL_FAULT, missingRunSources, RUN_CRITICAL_SOURCES, ' +
@@ -326,6 +327,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         dealGateReset, DEAL_CATEGORIES, getApplied,
         DATA_FILES, READING_FIELDS, openGate, logRun,
         citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
+        buildDataStore, EMBEDDED_SOURCES, resolveDataMode,
         REVIEWER_PROMPT,
         runWeeklyForecast, RUN_LOG, runLogRows, pendingCount, currentCaseLabel,
         gateApprove, gateSaveEdit, gateEscalate, gateComplete, gateStatus, closeGate,
@@ -1976,10 +1978,24 @@ function check(name, cond, detail) {
     'followUpResult', 'humanRunLog', 'runLogSummary', 'dealGate', 'dealGateSummary',
     'dealGateNotice', 'dealRepNotes', 'sweepProgress', 'sweepSummary', 'apikey', 'saveKey',
     'clearKey', 'keyState', 'sibylPromptView', 'reviewerPromptView', 'app',
-    'caseList', 'mainHead', 'viewSubmission', 'viewDeal', 'topStatus', 'topMeta'];
+    'caseList', 'mainHead', 'viewSubmission', 'viewDeal', 'topStatus', 'topMeta',
+    'dataSourceBadge', 'dataSourceBanner'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
+
+  /* 21g2/21g3 — the data-source seam (P1). The store builder must reproduce
+     the embedded tables exactly, and the harness environment (no location)
+     must always resolve to the embedded mode — its fetch stub depends on it. */
+  check('21g2 buildDataStore(EMBEDDED_SOURCES) reproduces the embedded tables through the seam',
+    (() => {
+      const s = buildDataStore(EMBEDDED_SOURCES);
+      return JSON.stringify(Object.keys(s.DB).sort()) === JSON.stringify(Object.keys(DB).sort()) &&
+             Object.keys(s.SIGNALS).length > 0 &&
+             s.SIBYL_PROMPT === SIBYL_PROMPT && s.REVIEWER_PROMPT === REVIEWER_PROMPT;
+    })(), Object.keys(DB).length + ' tables via the seam');
+  check('21g3 the harness environment always resolves to the embedded data mode',
+    resolveDataMode() === 'embedded');
 
   /* 21h-21k — the case list and selection. */
   SCENARIO = 'gate'; resetCapture();

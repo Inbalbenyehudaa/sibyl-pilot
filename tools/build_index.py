@@ -483,8 +483,10 @@ body { overflow-x: hidden; }
   <span class="product">Sibyl</span>
   <span class="badge neutral" id="topStatus">Idle</span>
   <span class="badge danger" id="topFault"></span>
+  <span class="badge neutral" id="dataSourceBadge">Embedded</span>
   <span class="meta" id="topMeta">the number you can defend</span>
 </div>
+<div class="statusband warn" id="dataSourceBanner" style="display:none"></div>
 
 <div class="console">
 
@@ -949,6 +951,31 @@ function applyDataStore(store) {
 }
 
 applyDataStore(buildDataStore(EMBEDDED_SOURCES));
+
+/* ------------------------------------------------------------------ */
+/* Data mode. Embedded (the constants above) is the default everywhere */
+/* — file://, the harness, and any origin without an API configured.   */
+/* Api mode is opt-in (?source=api or the localStorage flag) and       */
+/* fetches a payload of the exact same shape from Supabase (P2.4).     */
+/* ------------------------------------------------------------------ */
+
+const DATA_MODE_KEY = 'sibyl_data_mode';
+const DATA_API = {
+  url: '',      /* Supabase project URL — set in P2.4 */
+  anonKey: ''   /* anon key, public by design — set in P2.4 */
+};
+
+function resolveDataMode() {
+  try {
+    if (typeof location === 'undefined') return 'embedded';
+    const q = new URLSearchParams(location.search || '');
+    if (q.get('source') === 'api') return 'api';
+    if (q.get('source') === 'embedded') return 'embedded';
+    if (typeof localStorage !== 'undefined' &&
+        localStorage.getItem(DATA_MODE_KEY) === 'api') return 'api';
+  } catch (e) { /* any surprise means the safe default */ }
+  return 'embedded';
+}
 
 __AGENT_BLOCK__
 
@@ -1495,16 +1522,66 @@ document.getElementById('evalsTable').addEventListener('click', async function (
   await runEvalCase(id, { fresh: fresh });
 });
 
-refreshKeyState();
-renderWorkState();
-renderGate();
-renderRunLog();
-renderEvalChips();
-/* Prompt 17 — last session's results come back before anything paints. */
-loadEvals();
-renderEvals();
-renderDealGate();
-render();
+/* ------------------------------------------------------------------ */
+/* Boot. The embedded path is FULLY SYNCHRONOUS — the harness runs it  */
+/* with stubbed DOM and no event loop, so an await here fails 300+     */
+/* checks at once. Only api mode goes async, and any failure on that   */
+/* path falls back to the embedded snapshot loudly, never silently.    */
+/* ------------------------------------------------------------------ */
+
+function renderDataSource(liveLabel, failNote) {
+  const badge = document.getElementById('dataSourceBadge');
+  if (badge) badge.textContent = liveLabel || 'Embedded';
+  const banner = document.getElementById('dataSourceBanner');
+  if (banner) {
+    if (failNote) { banner.textContent = failNote; banner.style.display = ''; }
+    else { banner.textContent = ''; banner.style.display = 'none'; }
+  }
+}
+
+function initApp() {
+  refreshKeyState();
+  renderWorkState();
+  renderGate();
+  renderRunLog();
+  renderEvalChips();
+  /* Prompt 17 — last session's results come back before anything paints. */
+  loadEvals();
+  renderEvals();
+  renderDealGate();
+  render();
+}
+
+async function bootAsync() {
+  try {
+    if (!DATA_API.url) throw new Error('no data API configured');
+    const r = await fetch(DATA_API.url + '/rest/v1/rpc/sibyl_sources', {
+      method: 'POST',
+      headers: {
+        'apikey': DATA_API.anonKey,
+        'Authorization': 'Bearer ' + DATA_API.anonKey,
+        'content-type': 'application/json'
+      },
+      body: '{}'
+    });
+    if (!r.ok) throw new Error('sources fetch failed: HTTP ' + r.status);
+    const payload = await r.json();
+    if (!payload || !payload.data) throw new Error('sources payload has no data');
+    applyDataStore(buildDataStore(payload));
+    initApp();
+    renderDataSource('Live: Supabase', null);
+  } catch (e) {
+    /* The embedded store was applied at load; re-apply for a clean state
+       and say so on screen — a fallback nobody sees is a lie in a badge. */
+    applyDataStore(buildDataStore(EMBEDDED_SOURCES));
+    initApp();
+    renderDataSource(null,
+      'Live data unavailable — using the embedded snapshot (' + e.message + ').');
+  }
+}
+
+if (resolveDataMode() === 'api') { bootAsync(); }
+else { initApp(); renderDataSource(null, null); }
 </script>
 </body>
 </html>
