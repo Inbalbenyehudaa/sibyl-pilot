@@ -57,7 +57,7 @@ Add `#dataSourceBadge`/`#dataSourceBanner` to the IDS array (verify_static.js:19
 DONE-WHEN: new seam covered by checks.
 VERIFY: harness green at the documented total.
 
-## Phase 2 — Supabase backend
+## Phase 2 — Supabase backend ✅ (done 2026-08-07; Pages now deploys via GitHub Actions — legacy builds hung on this repo)
 
 **P2.1 — Tooling + credentials.** `brew install libpq` for psql. Add `.env` to `.gitignore` FIRST; user pastes project URL, anon key, Postgres connection string into `.env` (never committed).
 VERIFY: `psql "$SUPABASE_DB_URL" -c 'select 1;'` returns 1; `git status` clean of `.env`.
