@@ -961,8 +961,10 @@ applyDataStore(buildDataStore(EMBEDDED_SOURCES));
 
 const DATA_MODE_KEY = 'sibyl_data_mode';
 const DATA_API = {
-  url: '',      /* Supabase project URL — set in P2.4 */
-  anonKey: ''   /* anon key, public by design — set in P2.4 */
+  /* Supabase project URL + anon key. The anon key is PUBLIC BY DESIGN —
+     row-level security is the gate, not this string (P2.4). */
+  url: 'https://ucgsizjaicokovwolcpj.supabase.co',
+  anonKey: 'sb_publishable_Uvqqfyw7WrUktmQ4IoawfQ_ILuoyWxb'
 };
 
 function resolveDataMode() {
@@ -973,6 +975,9 @@ function resolveDataMode() {
     if (q.get('source') === 'embedded') return 'embedded';
     if (typeof localStorage !== 'undefined' &&
         localStorage.getItem(DATA_MODE_KEY) === 'api') return 'api';
+    /* The published pilot origin runs live by default (P2.4);
+       ?source=embedded above remains the escape hatch. */
+    if (location.hostname === 'inbalbenyehudaa.github.io') return 'api';
   } catch (e) { /* any surprise means the safe default */ }
   return 'embedded';
 }
