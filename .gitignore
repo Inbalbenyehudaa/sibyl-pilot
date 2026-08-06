@@ -20,3 +20,4 @@ archieved_Sibyl_prompt.md
 
 # Local secrets — never committed
 .env
+__pycache__/
