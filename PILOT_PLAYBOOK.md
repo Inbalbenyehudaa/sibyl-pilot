@@ -71,7 +71,11 @@ VERIFY: counts match `wc -l`; run twice → identical; `select name from sibyl_t
 **P2.4 — Wire the client.** `SUPABASE_URL`/`ANON_KEY` constants; api mode POSTs `/rest/v1/rpc/sibyl_sources`. Then default api on the sibyl-pilot Pages hostname.
 VERIFY: `?source=api` on :8941 → `Live: Supabase`, full run identical to embedded; Pages origin defaults live with working fallback.
 
-## Phase 3 — Persistence + the prompt-22 loop ✅ (done 2026-08-07; check total now 396)
+## Phase 3 — Persistence + the prompt-22 loop ✅ (done 2026-08-07; check total now 397)
+
+> **Eval status:** all five evals re-run LIVE and passed on 2026-08-07, AFTER the revision-run
+> rule was added to `sibyl_prompt.md` — the prompt-change re-run debt is settled. The rule is
+> inert without a MANAGER DECISIONS payload section, and the live run confirms it.
 
 **P3.1 — Retain `s.decisions`** (+ readings) in `LAST_RUN` (today only `s.walk` survives, ~4769).
 **P3.2 — Maya precedence.** Maya branch in `finalCategoryOf()` (856–880): Maya > Sibyl > reviewer > rep; real source tag replaces hard-coded `'Sibyl'` (line 1021) → `[Maya]` labels. Zero-override runs byte-identical.
