@@ -71,7 +71,7 @@ VERIFY: counts match `wc -l`; run twice → identical; `select name from sibyl_t
 **P2.4 — Wire the client.** `SUPABASE_URL`/`ANON_KEY` constants; api mode POSTs `/rest/v1/rpc/sibyl_sources`. Then default api on the sibyl-pilot Pages hostname.
 VERIFY: `?source=api` on :8941 → `Live: Supabase`, full run identical to embedded; Pages origin defaults live with working fallback.
 
-## Phase 3 — Persistence + the prompt-22 loop
+## Phase 3 — Persistence + the prompt-22 loop ✅ (done 2026-08-07; check total now 396)
 
 **P3.1 — Retain `s.decisions`** (+ readings) in `LAST_RUN` (today only `s.walk` survives, ~4769).
 **P3.2 — Maya precedence.** Maya branch in `finalCategoryOf()` (856–880): Maya > Sibyl > reviewer > rep; real source tag replaces hard-coded `'Sibyl'` (line 1021) → `[Maya]` labels. Zero-override runs byte-identical.
@@ -98,6 +98,25 @@ Prompt template: *"In the Pilot view, [one change]. Use DESIGN.md recipes and TO
 - The Friday ritual as a guided flow (run → review deals → recalc → submit)
 - Stored-decisions history view (reads `sibyl_pilot_decisions`)
 - Week-over-week trend from persisted runs
+
+## Parked decisions (mention in a future Deploy/Develop PRD rewrite)
+
+- **2026-08-07 · Source names stay `.csv` in prompts/policies.** In live (api) mode the data
+  comes from Postgres, but the prompts keep the logical file names: they are *source
+  identifiers* (payload keys + the citation vocabulary), not storage claims, and one
+  vocabulary stays true in both embedded and live modes. Provenance is a UI concern (the
+  topbar badge). Renaming would touch both prompts, both policies, the eval key and the
+  citation resolver, and would force a full five-eval re-run — parked as cost without
+  judgment benefit.
+- **2026-08-07 · Recalc flow decisions.** Maya's calls are separate manager-category records
+  (append-only; reviewer categories never overwritten). Recalc precedence Maya > reviewer >
+  rep — Sibyl's overrides deliberately not in the ladder (the recalc is a counter-walk-up).
+  Component 03 inherited from Sibyl's named list, her edits win, moved-in deals not
+  auto-counted. The redraft is a full constrained Sibyl call (all 11 fields, categories
+  pinned; `sibyl_prompt.md` untouched — the constraint is message-level). Display model C:
+  the page enters an explicit REVISED state and the gate moves to the revision.
+- **Backlog: a sixth eval case for the recalc path** (Maya overrides two categories → the
+  revision quotes her numbers and registers Sibyl's original disagreement).
 
 ## Not doing
 

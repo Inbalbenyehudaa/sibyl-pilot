@@ -290,6 +290,8 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'DATA_FILES, READING_FIELDS, openGate, logRun, ' +
   'citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS, ' +
   'buildDataStore, EMBEDDED_SOURCES, resolveDataMode, ' +
+  'mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, ' +
+  'setLastRun: (v) => { LAST_RUN = v; }, ' +
   'setWorkState, renderWorkState, PRODUCT_LINE, getWorkState: () => WORK_STATE, ' +
   'EVAL_CHIPS, loadEvalCase, renderEvalChips, setFault, clearFault, sourceMissing, ' +
   'lastWeekRows, getFault: () => EVAL_FAULT, missingRunSources, RUN_CRITICAL_SOURCES, ' +
@@ -328,6 +330,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         DATA_FILES, READING_FIELDS, openGate, logRun,
         citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
         buildDataStore, EMBEDDED_SOURCES, resolveDataMode,
+        mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, setLastRun,
         REVIEWER_PROMPT,
         runWeeklyForecast, RUN_LOG, runLogRows, pendingCount, currentCaseLabel,
         gateApprove, gateSaveEdit, gateEscalate, gateComplete, gateStatus, closeGate,
@@ -1460,8 +1463,12 @@ function check(name, cond, detail) {
      table costs real API calls. The run log stays memory-only — a decision
      record that outlives the page needs a retention answer nobody has given.
      Two keys, named; a third cannot appear without failing here. */
-  check('16w the run log is memory-only — only the API key and the eval results persist',
-    storedKeys.sort().join(',') === 'EVAL_STORE_KEY,KEY_STORAGE' &&
+  /* P3 amended this policy: the write TOKEN persists (a credential, like the
+     API key — never a decision record). Decisions still never touch
+     localStorage; in pilot (api) mode they land in the DATABASE, and the
+     retention notice on screen is the compensating honesty (P3.6). */
+  check('16w localStorage holds credentials + eval results only — decisions never (DB is the pilot store)',
+    storedKeys.sort().join(',') === "'sibyl_write_token',EVAL_STORE_KEY,KEY_STORAGE" &&
     !/setItem\([^)]*RUN_LOG/.test(js) && !/setItem\([^)]*DEAL_GATE/.test(js) &&
     !/setItem\([^)]*GATE\b/.test(js) &&
     /in memory only/.test(els.runLogSummary.textContent),
@@ -1979,7 +1986,9 @@ function check(name, cond, detail) {
     'dealGateNotice', 'dealRepNotes', 'sweepProgress', 'sweepSummary', 'apikey', 'saveKey',
     'clearKey', 'keyState', 'sibylPromptView', 'reviewerPromptView', 'app',
     'caseList', 'mainHead', 'viewSubmission', 'viewDeal', 'topStatus', 'topMeta',
-    'dataSourceBadge', 'dataSourceBanner'];
+    'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaWalkUp', 'mayaRecalcOut',
+    'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
+    'writeTokenState'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -3033,6 +3042,47 @@ function check(name, cond, detail) {
   check('33c and the strip is display-only — citation parsing still sees the raw value',
     /citationTags\(field, scan\.values\[field\]\)/.test(js),
     'citationTags reads the unstripped value');
+
+  /* 34 — the Maya recalc merge (Phase 3, prompt-22 loop). */
+  SCENARIO = 'gate'; resetCapture(); dealGateReset(); clearFault();
+  const mrRun = await runAllDeals(() => {});
+  const mrReadings = mrRun.readings;
+  const mrOpen = OPEN_DEALS.map(d => d['Deal ID']);
+  const mrA = mrOpen[0], mrB = mrOpen[1];
+  setLastRun({ readings: mrReadings, text: 'stub draft', scan: { values: {} },
+               refusal: { refused: false },
+               decisions: { component03: [mrA, mrB], bestCaseRationale: 'inherit-test' } });
+  const md0 = mayaDecisions();
+  check('34a with no gate actions the merge IS the reviewer baseline — no [Maya] anywhere',
+    md0 !== null && mrOpen.every(id => md0.categories[id] !== undefined) &&
+    Object.keys(md0.sources).every(id => md0.sources[id] !== 'Maya'),
+    mrOpen.length + ' deals, all reviewer/rep-sourced');
+  const mrResolved = dealGateContext(mrA).resolved;
+  const mrNewCat = mrResolved === 'Commit' ? 'Pipeline' : 'Commit';   // never Best Case, never a no-op
+  dealEdit(mrA, mrNewCat, 'harness: moved off ' + mrResolved);
+  const md1 = mayaDecisions();
+  check('34b her edit wins with a [Maya] source; untouched deals keep the reviewer default',
+    md1.categories[mrA] === mrNewCat && md1.sources[mrA] === 'Maya' &&
+    md1.categories[mrB] === md0.categories[mrB] && md1.sources[mrB] === md0.sources[mrB]);
+  check('34c component 03 inheritance — a deal she moved out of Best Case leaves c03, named',
+    md1.component03.indexOf(mrA) === -1 && md1.droppedC03.indexOf(mrA) !== -1 &&
+    (md1.component03.indexOf(mrB) !== -1) === (md1.categories[mrB] === 'Best Case'));
+  const mrWalk = computeWalkUp(md1, mrReadings);
+  check('34d the recalculated walk-up routes her call with the [Maya] source label',
+    mrWalk.applied && mrWalk.applied[mrA] && mrWalk.applied[mrA].cat === mrNewCat &&
+    mrWalk.applied[mrA].src === 'Maya');
+  check('34e pinnedMismatch is silent on an exact call and names every deviation',
+    pinnedMismatch(md1, { categories: Object.assign({}, md1.categories),
+                          component03: md1.component03.slice() }).length === 0 &&
+    pinnedMismatch(md1, { categories: Object.assign({}, md1.categories, (() => { const o = {}; o[mrA] = 'Omit'; return o; })()),
+                          component03: md1.component03.slice() }).some(m => m.indexOf(mrA) !== -1));
+  check('34f embedded mode never writes to the pilot log — postPilotDecision is a no-op here',
+    postPilotDecision('human_action', 'harness', null, {}) === false);
+  check('34g recalcReady gates on a real draft and refuses a refusal',
+    recalcReady() === true &&
+    (() => { setLastRun({ readings: mrReadings, text: 'x', refusal: { refused: true } });
+             const r = recalcReady(); return r === false; })());
+  dealGateReset(); clearLastRun();
 
   console.log(results.join('\n'));
   const fails = results.filter(r => r.indexOf('FAIL') === 0).length;

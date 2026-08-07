@@ -487,6 +487,7 @@ body { overflow-x: hidden; }
   <span class="meta" id="topMeta">the number you can defend</span>
 </div>
 <div class="statusband warn" id="dataSourceBanner" style="display:none"></div>
+<div class="hint" id="retentionNote"></div>
 
 <div class="console">
 
@@ -605,6 +606,11 @@ body { overflow-x: hidden; }
         <p><textarea id="followUpText" rows="2" placeholder="Maya's reply to the draft — approve it, change a call, or ask Sibyl to do something." disabled></textarea></p>
         <p><button type="button" id="sendFollowUp" class="btn" disabled>Send to Sibyl</button></p>
         <pre id="followUpResult"></pre>
+        <h4>Recalculate with my calls</h4>
+        <p class="hint" id="mayaRecalcHint">Run the weekly forecast first — the recalc revises a draft, and there is no draft yet.</p>
+        <p><button type="button" id="recalcMaya" class="btn" disabled>Recalculate with my calls</button></p>
+        <pre id="mayaWalkUp" style="display:none"></pre>
+        <pre id="mayaRecalcOut"></pre>
         <p class="boundary-note">Nothing is sent without human approval.</p>
       </div>
 
@@ -668,6 +674,11 @@ body { overflow-x: hidden; }
          <button type="button" id="saveKey">Save key</button>
          <button type="button" id="clearKey">Clear key</button></p>
       <p id="keyState">checking…</p>
+      <p><label for="writeToken">Pilot write token (optional)</label>
+         <input type="password" id="writeToken" autocomplete="off" size="44" placeholder="enables storing runs + your decisions in the pilot database">
+         <button type="button" id="saveWriteToken">Save token</button>
+         <button type="button" id="clearWriteToken">Clear</button></p>
+      <p id="writeTokenState"></p>
     </div>
   </details>
   <details>
@@ -1274,6 +1285,23 @@ document.getElementById('clearKey').addEventListener('click', function () {
   refreshKeyState();
 });
 
+document.getElementById('saveWriteToken').addEventListener('click', function () {
+  const input = document.getElementById('writeToken');
+  const v = input.value.trim();
+  if (!v) { refreshWriteTokenState(); return; }
+  try { localStorage.setItem('sibyl_write_token', v); } catch (e) {}
+  input.value = '';   /* never leave the token sitting in the DOM */
+  refreshWriteTokenState();
+});
+document.getElementById('clearWriteToken').addEventListener('click', function () {
+  try { localStorage.removeItem('sibyl_write_token'); } catch (e) {}
+  document.getElementById('writeToken').value = '';
+  refreshWriteTokenState();
+});
+document.getElementById('recalcMaya').addEventListener('click', function () {
+  runMayaRecalc();
+});
+
 document.getElementById('sibylPromptView').textContent = SIBYL_PROMPT;
 document.getElementById('reviewerPromptView').textContent = reviewerSystemPrompt();
 
@@ -1542,6 +1570,46 @@ function renderDataSource(liveLabel, failNote) {
     if (failNote) { banner.textContent = failNote; banner.style.display = ''; }
     else { banner.textContent = ''; banner.style.display = 'none'; }
   }
+  /* P3.6 — retention honesty. The app deliberately kept decisions in memory
+     only; persisting them requires saying so where it cannot be missed. */
+  const note = document.getElementById('retentionNote');
+  if (note) {
+    if (liveLabel) {
+      note.textContent = 'Pilot mode stores runs and your per-deal decisions in the pilot ' +
+        'database (synthetic data; append-only; visible to anyone with the link).';
+      refreshStoredCount();
+    } else {
+      note.textContent = 'Nothing is stored — runs and decisions live in this tab only and a reload clears them.';
+    }
+  }
+}
+
+function refreshStoredCount() {
+  try {
+    if (resolveDataMode() !== 'api' || !DATA_API.url) return;
+    fetch(DATA_API.url + '/rest/v1/sibyl_pilot_decisions?select=id&limit=1', {
+      headers: { 'apikey': DATA_API.anonKey, 'Authorization': 'Bearer ' + DATA_API.anonKey,
+                 'Prefer': 'count=exact', 'Range': '0-0' }
+    }).then(function (r) {
+      const cr = r.headers.get('content-range') || '';
+      const total = cr.indexOf('/') !== -1 ? cr.split('/')[1] : '?';
+      const note = document.getElementById('retentionNote');
+      if (note && total !== '?') {
+        note.textContent = 'Pilot mode stores runs and your per-deal decisions in the pilot ' +
+          'database — ' + total + ' record(s) stored (synthetic data; append-only; public read).';
+      }
+    }).catch(function () {});
+  } catch (e) {}
+}
+
+function refreshWriteTokenState() {
+  const el = document.getElementById('writeTokenState');
+  if (!el) return;
+  let tok = '';
+  try { tok = localStorage.getItem('sibyl_write_token') || ''; } catch (e) {}
+  el.textContent = tok
+    ? 'Write token saved — runs and decisions will be stored in pilot (live-data) mode.'
+    : 'No write token — nothing is written to the pilot database.';
 }
 
 function initApp() {
@@ -1555,6 +1623,8 @@ function initApp() {
   renderEvals();
   renderDealGate();
   render();
+  updateRecalcButton();
+  refreshWriteTokenState();
 }
 
 async function bootAsync() {
@@ -1575,6 +1645,7 @@ async function bootAsync() {
     applyDataStore(buildDataStore(payload));
     initApp();
     renderDataSource('Live: Supabase', null);
+    hydratePilotState();
   } catch (e) {
     /* The embedded store was applied at load; re-apply for a clean state
        and say so on screen — a fallback nobody sees is a lie in a badge. */
@@ -1583,6 +1654,63 @@ async function bootAsync() {
     renderDataSource(null,
       'Live data unavailable — using the embedded snapshot (' + e.message + ').');
   }
+}
+
+/* P3.7 — reload continuation (api mode only). Restores the latest run
+   snapshot into LAST_RUN and Maya's latest per-deal calls into the gate,
+   so "Recalculate with my calls" survives a reload. A NEW sweep still
+   clears her calls (dealGateReset) — that is the honest semantics: a new
+   run means new readings, and old calls are stale against them. */
+async function hydratePilotState() {
+  try {
+    const H = { 'apikey': DATA_API.anonKey, 'Authorization': 'Bearer ' + DATA_API.anonKey };
+    const rr = await fetch(DATA_API.url + '/rest/v1/sibyl_pilot_decisions' +
+      '?kind=eq.run&order=id.desc&limit=1&select=payload', { headers: H });
+    let restoredRun = false;
+    if (rr.ok) {
+      const rows = await rr.json();
+      const snap = rows.length && rows[0].payload && rows[0].payload.snapshot;
+      if (snap && snap.readings && snap.text && !LAST_RUN) {
+        LAST_RUN = { n: null, at: 'restored', kind: 'restored', faulted: null, error: '',
+                     band: null, scan: parseSibylFields(snap.text), refusal: parseRefusal(snap.text),
+                     readings: snap.readings, walk: null, text: snap.text,
+                     decisions: snap.decisions || null, restored: true };
+        restoredRun = true;
+      }
+    }
+    const mr = await fetch(DATA_API.url + '/rest/v1/sibyl_pilot_decisions' +
+      '?kind=eq.maya_category&order=id.desc&limit=200&select=deal_id,payload', { headers: H });
+    let restoredCalls = 0;
+    if (mr.ok) {
+      const rows = await mr.json();
+      const latest = {};
+      rows.forEach(function (r) {
+        if (r.deal_id && !latest[r.deal_id]) latest[r.deal_id] = r.payload || {};
+      });
+      for (const id in latest) {
+        if (DEAL_GATE[id]) continue;
+        const p = latest[id];
+        DEAL_GATE[id] = { id: id, name: '', repCategory: p.repCategory || '',
+                          reviewerCategory: p.reviewerCategory || '', resolved: p.resolved || '',
+                          entry: null, action: p.action || 'EDITED',
+                          category: p.category || null,
+                          reason: (p.reason ? p.reason + ' ' : '') + '(restored from the pilot log)',
+                          escalateTo: p.escalateTo || [], at: 'restored', hydrated: true };
+        restoredCalls++;
+      }
+    }
+    if (restoredRun || restoredCalls) {
+      renderDealGate();
+      updateRecalcButton();
+      const note = document.getElementById('retentionNote');
+      if (note && note.textContent) {
+        note.textContent += ' Restored from the log: ' +
+          (restoredRun ? 'the last run' : '') +
+          (restoredRun && restoredCalls ? ' + ' : '') +
+          (restoredCalls ? restoredCalls + ' of your per-deal calls' : '') + '.';
+      }
+    }
+  } catch (e) { /* hydration is best-effort; the app stands without it */ }
 }
 
 if (resolveDataMode() === 'api') { bootAsync(); }

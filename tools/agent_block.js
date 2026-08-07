@@ -1029,7 +1029,10 @@ function computeWalkUp(decisions, readings) {
     const amt = num(d['Exit ARR Impact Amount']);
     let cat, src, isDefault = false;
     if (decisions && decisions.categories && decisions.categories[id]) {
-      cat = decisions.categories[id]; src = 'Sibyl';
+      /* P3.2 — an optional parallel sources map lets a caller label routing
+         per deal ([Maya]/[Reviewer]/[Rep]); absent, behavior is unchanged. */
+      cat = decisions.categories[id];
+      src = (decisions.sources && decisions.sources[id]) || 'Sibyl';
     } else {
       const f = finalCategoryOf(d, readings ? readings[id] : null);
       cat = f.cat; src = f.src;
@@ -2053,7 +2056,7 @@ function unresolvedCallText(openIds, missing) {
    rejections are allowed (see unresolvedCallText / stubCallText); after those
    the calculator computes regardless, and the revision invitation is single-
    use, so the turn cannot spin the way the 2026-08-02 and 2026-08-06 runs did. */
-async function callSibyl(systemPrompt, userMessage, readings, onStep) {
+async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
   const started = Date.now();
   const messages = [{ role: 'user', content: userMessage }];
   let walk = null, decisions = null, roundTrips = 0, inTok = 0, outTok = 0;
@@ -2061,6 +2064,12 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep) {
   const openIds = DB['deals_current.csv'].rows
     .filter(d => !isClosed(d['Stage'])).map(d => d['Deal ID']);
   let handBacks = 0, lastComputed = null;
+  /* P3.3 — a revision run pins the manager's categories: one correction
+     hand-back is allowed, after which the pinned calls are substituted so
+     the calculator can never price anything but Maya's walk-up. The stub
+     gate is skipped when pinned — the judgment being defended is hers. */
+  const pinned = (opts && opts.pinned) || null;
+  let pinnedHB = 0;
   /* Cap sized for the worst LEGITIMATE path (§51): 1 unresolved hand-back +
      2 stub rejections + 1 compute + 1 licensed revision + 1 compute + 1 final
      text = 7, plus one of slack. At 5 the 2026-08-06 run could never reach
@@ -2103,6 +2112,43 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep) {
       const sent = decisionsFromToolInput(tu.input);
       const missing = openIds.filter(id => !sent.categories[id]);
       let resultText, isError = false;
+
+      if (pinned) {
+        const mism = pinnedMismatch(pinned, sent);
+        if (mism.length && pinnedHB === 0) {
+          pinnedHB++;
+          messages.push({ role: 'assistant', content: content });
+          messages.push({ role: 'user', content: [{ type: 'tool_result',
+            tool_use_id: tu.id, is_error: true,
+            content: 'REJECTED — this is a revision run and the manager\'s categories are final. ' +
+              'Deviations: ' + mism.join('; ') + '. Call compute_walk_up again with EXACTLY the ' +
+              'pinned deal_decisions and component_03_deals from the instructions. Do not re-litigate.' }] });
+          if (onStep) onStep('tool_error', { kind: 'pinned', problems: mism });
+          continue;
+        }
+        if (mism.length) {
+          sent.categories = Object.assign({}, pinned.categories);
+          sent.component03 = pinned.component03.slice();
+          forcedNotes.push('Sibyl deviated from the manager\'s pinned calls twice (' +
+            mism.join('; ') + '). The calculator priced the manager\'s categories regardless — ' +
+            'her calls are not the model\'s to change.');
+        }
+        sent.sources = pinned.sources;
+        decisions = sent;
+        lastComputed = JSON.stringify(tu.input);
+        walk = computeWalkUp(sent, readings);
+        if (forcedNotes.length) walk.notes = walk.notes.concat(forcedNotes);
+        computes++;
+        resultText = walkUpText(walk).replace(
+            'endorse them in the challenge list or call again to change them:',
+            'endorse them in the challenge list:') + '\n\n' +
+          (computes === 1 ? WALK_UP_DONE : WALK_UP_FINAL);
+        if (onStep) onStep('tool_result', walk);
+        messages.push({ role: 'assistant', content: content });
+        messages.push({ role: 'user', content: [{ type: 'tool_result',
+          tool_use_id: tu.id, content: resultText, is_error: false }] });
+        continue;
+      }
 
       /* The only non-computing branch left, and it fires at most once. */
       if (missing.length && !sent.acceptUnlisted && handBacks === 0) {
@@ -2236,6 +2282,277 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep) {
     };
   }
   return { ok: false, error: 'The tool loop hit its 8-iteration cap without a final answer. The logged tool arguments and walk-up above still stand.', walk: walk, decisions: decisions };
+}
+
+/* ================================================================== */
+/* MAYA'S RECALC — the prompt-22 loop (Phase 3).                       */
+/*                                                                     */
+/* Precedence is Maya > reviewer > rep. Sibyl's categories are NOT in  */
+/* this ladder: the recalc is a COUNTER-walk-up standing next to the   */
+/* submission, built on the readings Maya actually reviewed in the     */
+/* per-deal gate. finalCategoryOf is reused, never modified — the      */
+/* merge happens here so the validated submission path cannot drift.   */
+/* Component 03 is inherited from Sibyl's named list; Maya's edits     */
+/* win (a deal she moved out of Best Case leaves c03; one she moved    */
+/* in joins the pool but is NOT auto-counted — naming c03 stays a      */
+/* judgment call, and the panel says so).                              */
+/* ================================================================== */
+
+function mayaDecisions() {
+  if (!LAST_RUN || !LAST_RUN.readings) return null;
+  const readings = LAST_RUN.readings;
+  const categories = {}, sources = {}, herCalls = [];
+  openDeals().forEach(d => {
+    const id = d['Deal ID'];
+    const g = DEAL_GATE[id];
+    if (g && g.category) {
+      categories[id] = g.category; sources[id] = 'Maya';
+      herCalls.push({ id: id, name: d['Deal Name'], category: g.category,
+                      action: g.action || 'EDITED', reason: g.reason || '' });
+    } else if (g && g.action === 'APPROVED') {
+      const f = finalCategoryOf(d, readings[id] || null);
+      categories[id] = f.cat; sources[id] = 'Maya';
+      herCalls.push({ id: id, name: d['Deal Name'], category: f.cat,
+                      action: 'APPROVED', reason: g.reason || 'endorsed the reviewer\'s reading' });
+    } else {
+      const f = finalCategoryOf(d, readings[id] || null);
+      categories[id] = f.cat; sources[id] = f.src;
+    }
+  });
+  const sibylC03 = ((LAST_RUN.decisions && LAST_RUN.decisions.component03) || [])
+    .filter(id => categories[id] !== undefined);
+  const component03 = sibylC03.filter(id => normaliseCategory(categories[id]) === 'Best Case');
+  const droppedC03 = sibylC03.filter(id => normaliseCategory(categories[id]) !== 'Best Case');
+  const movedIntoPool = Object.keys(categories).filter(id =>
+    sources[id] === 'Maya' && normaliseCategory(categories[id]) === 'Best Case' &&
+    component03.indexOf(id) === -1);
+  return { categories: categories, sources: sources, herCalls: herCalls,
+           component03: component03, droppedC03: droppedC03, movedIntoPool: movedIntoPool,
+           rationales: {}, rationaleParts: {},
+           bestCaseRationale: (LAST_RUN.decisions && LAST_RUN.decisions.bestCaseRationale) || '',
+           acceptUnlisted: false };
+}
+
+/* Deviations between what a pinned revision run demanded and what the model
+   sent — named per deal, so the correction (and the forced note) is auditable. */
+function pinnedMismatch(pinnedDecisions, sent) {
+  const out = [];
+  for (const id in pinnedDecisions.categories) {
+    const want = normaliseCategory(pinnedDecisions.categories[id]) || pinnedDecisions.categories[id];
+    const got = normaliseCategory(sent.categories[id]) || sent.categories[id];
+    if (!got) out.push(id + ' missing (must be ' + want + ')');
+    else if (got !== want) out.push(id + ' sent as ' + got + ' (must be ' + want + ')');
+  }
+  const wantC03 = pinnedDecisions.component03.slice().sort().join(',');
+  const gotC03 = (sent.component03 || []).slice().sort().join(',');
+  if (wantC03 !== gotC03) {
+    out.push('component_03_deals sent as [' + (gotC03 || 'none') + '] (must be [' + (wantC03 || 'none') + '])');
+  }
+  return out;
+}
+
+function mayaRecalcMessage(md, walk) {
+  const P = [];
+  P.push(buildSibylMessage(LAST_RUN.readings));
+  P.push('');
+  P.push('=== REVISION RUN — THE MANAGER HAS DECIDED (this section overrides the routing instructions above) ===');
+  P.push('');
+  P.push('Maya reviewed the per-deal readings in the human gate and set FINAL categories. This turn');
+  P.push('is a revision of the draft, not a fresh judgment. Rules for this turn only:');
+  P.push('');
+  P.push('1. Call compute_walk_up EXACTLY ONCE, with final_category per deal EXACTLY as pinned below.');
+  P.push('   A call that deviates will be rejected. Do not re-litigate any category.');
+  P.push('2. component_03_deals must be exactly: [' + md.component03.join(', ') + ']');
+  P.push('3. For each deal\'s rationale: rule_id "M1"; evidence: the manager\'s recorded action and');
+  P.push('   reason, quoted; argument: "Manager\'s final call — routing decided by the manager (M8.1)."');
+  P.push('4. Then write ALL eleven output fields as a full submission drafted on the returned');
+  P.push('   walk-up, quoting the calculator\'s figures verbatim (M2.5a).');
+  P.push('5. In disagreement_register: for each deal where YOUR original run\'s category differs from');
+  P.push('   the manager\'s final call, record the difference factually — advisory, no argument.');
+  P.push('');
+  P.push('PINNED FINAL CATEGORIES (source in brackets):');
+  openDeals().forEach(d => {
+    const id = d['Deal ID'];
+    P.push('- ' + id + ' (' + d['Deal Name'] + ') -> ' + md.categories[id] +
+           '   [' + (md.sources[id] === 'Maya' ? 'Maya' : md.sources[id]) + ']');
+  });
+  if (md.herCalls.length) {
+    P.push('');
+    P.push('THE MANAGER\'S RECORDED ACTIONS (quote these in the rationales):');
+    md.herCalls.forEach(h => {
+      P.push('- ' + h.id + ' ' + h.name + ': ' + h.action + ' -> ' + h.category +
+             (h.reason ? ' — reason: "' + h.reason + '"' : ''));
+    });
+  }
+  if (md.droppedC03.length) {
+    P.push('');
+    P.push('NOTE: ' + md.droppedC03.join(', ') + ' left component 03 because the manager moved the');
+    P.push('deal(s) out of Best Case.');
+  }
+  if (md.movedIntoPool.length) {
+    P.push('');
+    P.push('NOTE: ' + md.movedIntoPool.join(', ') + ' entered the Best Case pool by the manager\'s call');
+    P.push('but are NOT counted in component 03 — naming c03 deals remains a judgment nobody made here.');
+  }
+  return P.join('\n');
+}
+
+function recalcReady() {
+  return !!(LAST_RUN && LAST_RUN.readings && LAST_RUN.text &&
+            !(LAST_RUN.refusal && LAST_RUN.refusal.refused));
+}
+
+function updateRecalcButton() {
+  const b = document.getElementById('recalcMaya');
+  if (!b) return;
+  b.disabled = !recalcReady();
+  const hint = document.getElementById('mayaRecalcHint');
+  if (hint) {
+    hint.textContent = recalcReady()
+      ? 'Recomputes the walk-up with YOUR per-deal calls (Maya > reviewer > rep — Sibyl\'s ' +
+        'overrides are not in this ladder), then one full Sibyl call redrafts the submission on ' +
+        'your figures. The gate re-opens on the revision.'
+      : 'Run the weekly forecast first — the recalc revises a draft, and there is no draft yet.';
+  }
+}
+
+async function runMayaRecalc() {
+  const out = document.getElementById('mayaRecalcOut');
+  const walkEl = document.getElementById('mayaWalkUp');
+  if (!recalcReady()) return { ok: false, error: 'no draft to revise' };
+  const md = mayaDecisions();
+  const prev = LAST_RUN;
+  const mayaWalk = computeWalkUp(md, prev.readings);
+  const inheritNotes = [];
+  if (md.droppedC03.length) inheritNotes.push('Left component 03 (your call moved them out of Best Case): ' + md.droppedC03.join(', '));
+  if (md.movedIntoPool.length) inheritNotes.push('In the Best Case pool by your call but NOT counted in component 03 (naming c03 stays a judgment): ' + md.movedIntoPool.join(', '));
+  if (walkEl) {
+    walkEl.style.display = '';
+    walkEl.textContent = '=== MAYA\'S WALK-UP — recalculated by the calculator from YOUR calls ===\n\n' +
+      walkUpText(mayaWalk) + (inheritNotes.length ? '\n\n' + inheritNotes.join('\n') : '');
+  }
+  if (out) { out.textContent = ''; }
+  const btn = document.getElementById('recalcMaya');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redrafting on your walk-up…'; }
+  setTopStatus('Revising — Maya\'s calls', 'running');
+
+  const s = await callSibyl(SIBYL_PROMPT, mayaRecalcMessage(md, mayaWalk), prev.readings,
+                            null, { pinned: md });
+  if (btn) { btn.textContent = 'Recalculate with my calls'; btn.disabled = !recalcReady(); }
+
+  if (!s.ok) {
+    setTopStatus('Revision failed', 'danger');
+    if (out) {
+      out.textContent = 'The redraft call failed — YOUR WALK-UP ABOVE STILL STANDS (it is the ' +
+        'calculator\'s arithmetic, not the model\'s). Error: ' + s.error;
+    }
+    return { ok: false, error: s.error, walk: mayaWalk };
+  }
+
+  /* ---- the page enters the MAYA REVISION state (display model C) ---- */
+  const refusal = parseRefusal(s.text);
+  const fieldScan = parseSibylFields(s.text);
+  const band = runStatusBand(fieldScan, refusal, s);
+  band.code = 'REVISED · ' + band.code;
+  const parts = splitReading(s.text);
+  const changed = SIBYL_FIELDS.filter(f =>
+    String((fieldScan.values || {})[f] || '') !== String(((prev.scan || {}).values || {})[f] || ''));
+  const prevHeadline = String(((prev.scan || {}).values || {}).suggested_forecast || '').split('\n')[0].trim();
+
+  renderStatusBand(document.getElementById('runStatus'), band);
+  setTopStatus('REVISED — Maya\'s calls', band.tone === 'ok' ? 'ok' : 'warn');
+  const header = [];
+  header.push('=== MAYA\'S REVISION — all eleven fields redrafted on HER walk-up ===');
+  header.push('');
+  header.push(walkUpText(s.walk || mayaWalk));
+  header.push('');
+  header.push('Fields changed vs Sibyl\'s original run: ' + (changed.join(', ') || 'none') +
+              (prevHeadline ? '\nsuggested_forecast was: ' + prevHeadline : ''));
+  header.push('');
+  const result = document.getElementById('runResult');
+  if (result) {
+    result.className = (!fieldScan.parsed || fieldScan.missing.length) ? 'warn' : 'ok';
+    result.textContent = usageLine(s) + '\n\n' + header.join('\n') + parts.submission;
+  }
+  renderSibylFields(document.getElementById('runFields'), fieldScan, s.text);
+  const readingEl = document.getElementById('runReading');
+  if (readingEl) {
+    readingEl.textContent = parts.reading
+      ? 'ADVISORY — REFRESHED for Maya\'s walk-up. Maya\'s eyes only (M10.4).\n\n' + parts.reading
+      : '(no sibyl_reading field in the revision)';
+  }
+
+  /* The spotlight — her reading path, in order, plus the superseded original. */
+  if (out) {
+    const notes = (fieldScan.values || {}).forecast_notes || '(forecast_notes did not arrive — see the draft above)';
+    out.textContent =
+      '[REFRESHED — drafted on YOUR walk-up]\n\n' +
+      '— forecast_notes —\n' + notes + '\n\n' +
+      '— sibyl_reading (advisory) —\n' + (parts.reading || '(none)') + '\n\n' +
+      'Fields changed: ' + (changed.join(', ') || 'none') + '\n' +
+      'Sibyl\'s original draft is preserved below and in the run log.\n\n' +
+      '=== SIBYL\'S ORIGINAL DRAFT (superseded by your revision) ===\n\n' +
+      (splitReading(prev.text).submission || prev.text || '');
+  }
+
+  /* The gate MOVES to the revision — an approval must not survive the
+     artifact changing underneath it (same rule as follow-ups). */
+  LAST_SIBYL = { messages: s.messages || [], system: SIBYL_PROMPT };
+  const entry = logRun('Maya revision · ' + currentCaseLabel(), decisionSummary(band, fieldScan));
+  openGate(entry, parts.submission, 'maya-revision');
+  LAST_RUN = { n: entry.n, at: entry.at, kind: 'maya-revision', faulted: prev.faulted,
+               error: '', band: band, scan: fieldScan, refusal: refusal,
+               readings: prev.readings, walk: s.walk || mayaWalk, text: s.text,
+               decisions: s.decisions || md, revisionOf: prev.n };
+  postPilotDecision('run', 'Maya revision · ' + currentCaseLabel(), null, {
+    n: entry.n, at: entry.at, band: band.code, revisionOf: prev.n,
+    snapshot: { readings: prev.readings, decisions: s.decisions || md, text: s.text }
+  });
+  if (s.walk && s.walk.applied) LAST_APPLIED = s.walk.applied;
+  renderRunLog();
+  renderGate();
+  renderDealGate();
+  return { ok: true, band: band, walk: s.walk || mayaWalk, changed: changed, entry: entry };
+}
+
+/* ------------------------------------------------------------------ */
+/* PILOT PERSISTENCE (P3.5) — api mode only, write-token gated,        */
+/* fire-and-forget: a failed store shows a note and never breaks the   */
+/* run. Embedded mode makes ZERO network calls (harness safety).       */
+/* ------------------------------------------------------------------ */
+
+var PILOT_SESSION = null;
+
+function pilotWriteToken() {
+  try { return localStorage.getItem('sibyl_write_token') || ''; } catch (e) { return ''; }
+}
+
+function postPilotDecision(kind, caseId, dealId, payload) {
+  try {
+    if (typeof resolveDataMode !== 'function' || resolveDataMode() !== 'api') return false;
+    if (typeof DATA_API === 'undefined' || !DATA_API.url) return false;
+    const tok = pilotWriteToken();
+    if (!tok) return false;
+    if (!PILOT_SESSION) PILOT_SESSION = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    fetch(DATA_API.url + '/rest/v1/sibyl_pilot_decisions', {
+      method: 'POST',
+      headers: { 'apikey': DATA_API.anonKey, 'Authorization': 'Bearer ' + DATA_API.anonKey,
+                 'content-type': 'application/json', 'x-write-token': tok,
+                 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ session_id: PILOT_SESSION, kind: kind,
+                             case_id: caseId || null, deal_id: dealId || null,
+                             payload: payload || {} })
+    }).then(function (r) {
+      if (!r.ok) pilotStoreNote('store failed: HTTP ' + r.status);
+      else if (typeof refreshStoredCount === 'function') refreshStoredCount();
+    }).catch(function (e) { pilotStoreNote('store failed: ' + e.message); });
+    return true;
+  } catch (e) { return false; }
+}
+
+function pilotStoreNote(msg) {
+  const el = document.getElementById('retentionNote');
+  if (el) el.textContent = 'Pilot log: ' + msg + ' — the run itself is unaffected.';
 }
 
 function usageLine(r) {
@@ -2424,6 +2741,10 @@ function recordHumanAction(entry, action, note) {
   if (!entry) return null;
   const rec = { action: action, at: stampNow(), note: String(note || '') };
   entry.actions.push(rec);
+  /* P3.5 — every human action also lands in the pilot log (api mode + token
+     only; no-op otherwise). The in-memory log stays the source on screen. */
+  postPilotDecision('human_action', entry.caseLabel || null, null,
+                    { action: action, note: rec.note, runN: entry.n, at: rec.at });
   return rec;
 }
 
@@ -2782,6 +3103,14 @@ function recordDealDecision(id, action, category, reason, escalateTo) {
   if (g.reason) note.push(g.reason);
   const rec = recordHumanAction(g.entry, action, note.join(' · '));
   g.at = rec ? rec.at : stampNow();
+  /* P3.5 — the manager-category record. A SEPARATE record: the reviewer's
+     category is never overwritten, and the log is append-only, so every
+     version of her call survives; hydration takes the latest per deal. */
+  postPilotDecision('maya_category', String(SELECTED_CASE), id, {
+    action: action, category: g.category || c.resolved, reason: g.reason,
+    escalateTo: g.escalateTo, reviewerCategory: c.reviewerCategory,
+    repCategory: c.repCategory, resolved: c.resolved, at: g.at
+  });
   return g;
 }
 
@@ -4776,10 +5105,21 @@ async function runWeeklyForecast(btn) {
      readings of THIS forecast, and each one names this run number. */
   LAST_RUN = { n: runEntry.n, at: runEntry.at, kind: runKind, faulted: runFaulted,
                error: '', band: band, scan: fieldScan, refusal: refusal,
-               readings: readings, walk: s.walk || null, text: s.text };
+               readings: readings, walk: s.walk || null, text: s.text,
+               /* P3.1 — the raw tool decisions (incl. component_03_deals IDs)
+                  survive the run: the Maya recalc inherits component 03 from
+                  them, and display strings cannot be parsed back into IDs. */
+               decisions: s.decisions || null };
+  /* P3.5/P3.7 — in api mode with a write token, the run snapshot lands in the
+     pilot log so a reload can restore enough state to recalc (fire-and-forget). */
+  postPilotDecision('run', currentCaseLabel(), null, {
+    n: runEntry.n, at: runEntry.at, band: band.code,
+    snapshot: { readings: readings, decisions: s.decisions || null, text: s.text }
+  });
   renderRunLog();
   renderGate();
   renderEvals();
+  updateRecalcButton();
 
   /* Now the deal gate knows what the submission actually used, so it can name
      any of Maya's calls the run did not apply. */
