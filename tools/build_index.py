@@ -738,9 +738,9 @@ body { overflow-x: hidden; }
     <div id="pilotEmpty" class="pilot-empty">
       <p class="pilot-eyebrow">Sibyl · pilot preview</p>
       <p class="headline">The number you can defend.</p>
-      <p class="sub">Sibyl drafts the weekly forecast from the CRM snapshot, the week-over-week
-         deltas and the decision record — every claim cited, and nothing submitted
-         without your call on it.</p>
+      <p class="sub">Sibyl drafts the weekly forecast from health signals, CRM snapshots, the
+         week-over-week deltas and the decision record — every claim cited, and nothing
+         submitted without your call on it.</p>
       <button type="button" id="pilotRun" class="btn primary">Run the weekly forecast</button>
       <p class="boundary-note">Nothing is sent without human approval.</p>
     </div>
@@ -1671,7 +1671,8 @@ function renderDataSource(liveLabel, failNote) {
   const note = document.getElementById('retentionNote');
   if (note) {
     if (liveLabel) {
-      note.textContent = 'Pilot mode stores runs and your decisions log.';
+      note.textContent = 'Pilot mode is a real deployment that stores runs and your ' +
+        'decision log for a full feedback loop.';
     } else {
       note.textContent = 'Nothing is stored — runs and decisions live in this tab only and a reload clears them.';
     }

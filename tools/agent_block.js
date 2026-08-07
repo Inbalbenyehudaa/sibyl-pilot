@@ -5204,11 +5204,14 @@ function selectTab(which) {
   ACTIVE_TAB = which === 'pilot' ? 'pilot' : 'console';
   const c = document.getElementById('consoleRoot');
   const p = document.getElementById('viewPilot');
-  /* The settings / prompts / world-check block is console chrome — the
-     pilot surface is the product, so it travels with the console. */
+  /* The settings / prompts / world-check block and the retention note are
+     console chrome — the pilot surface is the product, so they travel with
+     the console. */
   const w = document.getElementById('worldcheckRoot');
+  const rn = document.getElementById('retentionNote');
   if (c) c.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
   if (w) w.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
+  if (rn) rn.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
   if (p) p.style.display = ACTIVE_TAB === 'pilot' ? '' : 'none';
   renderTabs();
   if (ACTIVE_TAB === 'pilot') renderPilot();
@@ -5353,9 +5356,21 @@ function pilotEl(tag, cls, text) {
   return el;
 }
 
+/* Abbreviated money for the pilot surface — the drift story reads at a
+   glance ($662.9K), the console keeps the exact figures. */
+function moneyShort(n) {
+  if (n === '' || n === null || n === undefined || isNaN(n)) return '—';
+  const v = Number(n);
+  const a = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (a < 1000) return sign + '$' + Math.round(a);
+  const unit = a >= 1e9 ? [1e9, 'B'] : a >= 1e6 ? [1e6, 'M'] : [1e3, 'K'];
+  return sign + '$' + (a / unit[0]).toFixed(1).replace(/\.0$/, '') + unit[1];
+}
+
 function pilotSigned(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
-  return (n >= 0 ? '+' : '-') + money(Math.abs(n));
+  return (n >= 0 ? '+' : '-') + moneyShort(Math.abs(n));
 }
 
 function renderPilot() {
@@ -5381,8 +5396,8 @@ function renderPilot() {
   hero.appendChild(meta);
 
   const h1 = pilotEl('p', 'pilot-h1',
-    'Your team says ' + money(m.numbers.teamBottomsUp) + '. The evidence supports ' +
-    money(m.numbers.suggestedForecast) + '.');
+    'Your team says ' + moneyShort(m.numbers.teamBottomsUp) + '. The evidence supports ' +
+    moneyShort(m.numbers.suggestedForecast) + '.');
   h1.id = 'pilotHeadline';
   hero.appendChild(h1);
 
@@ -5397,8 +5412,8 @@ function renderPilot() {
   const card = pilotEl('div', 'pilot-hero-card');
   const stats = pilotEl('div', 'pilot-stats');
   [
-    { k: 'Team bottoms-up', v: money(m.numbers.teamBottomsUp), cls: '' },
-    { k: 'Evidence-supported commit', v: money(m.numbers.suggestedForecast), cls: ' accent' },
+    { k: 'Team bottoms-up', v: moneyShort(m.numbers.teamBottomsUp), cls: '' },
+    { k: 'Suggested forecast', v: moneyShort(m.numbers.suggestedForecast), cls: ' accent' },
     { k: 'Drift', v: pilotSigned(m.numbers.drift),
       cls: m.numbers.drift !== null && m.numbers.drift < 0 ? ' neg' : ' pos' }
   ].forEach(s => {
@@ -5419,9 +5434,9 @@ function renderPilot() {
     card.appendChild(track);
     card.appendChild(pilotEl('p', 'pilot-bar-label', 'Attainment gap to target'));
     card.appendChild(pilotEl('p', 'pilot-bar-caption',
-      'Closed Won QTD ' + money(m.numbers.closedWon) + ' of ' + money(m.numbers.quota) +
+      'Closed Won QTD ' + moneyShort(m.numbers.closedWon) + ' of ' + moneyShort(m.numbers.quota) +
       ' target · ' + m.numbers.attainmentPct + '% attained · gap ' +
-      money(m.numbers.quota - m.numbers.closedWon)));
+      moneyShort(m.numbers.quota - m.numbers.closedWon)));
   }
   hero.appendChild(card);
 }

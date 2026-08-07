@@ -313,7 +313,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
-  'buildPilotModel, pilotTopdown, ' +
+  'buildPilotModel, pilotTopdown, moneyShort, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -343,7 +343,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
-        buildPilotModel, pilotTopdown,
+        buildPilotModel, pilotTopdown, moneyShort,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -2070,17 +2070,19 @@ function check(name, cond, detail) {
     getActiveTab() === 'pilot' &&
     els.viewPilot.style.display === '' && els.consoleRoot.style.display === 'none' &&
     els.worldcheckRoot.style.display === 'none' &&
+    els.retentionNote.style.display === 'none' &&
     els.tabPilot.className === 'tab active' && els.tabConsole.className === 'tab' &&
     getSelected() === 'submission',
-    'pilot shown, console + settings hidden, selection untouched');
+    'pilot shown, console + settings + retention note hidden, selection untouched');
   selectTab('console');
   check('21q and the Console tab swaps back, selection untouched',
     getActiveTab() === 'console' &&
     els.viewPilot.style.display === 'none' && els.consoleRoot.style.display === '' &&
     els.worldcheckRoot.style.display === '' &&
+    els.retentionNote.style.display === '' &&
     els.tabConsole.className === 'tab active' && els.tabPilot.className === 'tab' &&
     getSelected() === 'submission',
-    'console + settings shown, pilot hidden');
+    'console + settings + retention note shown, pilot hidden');
   check('21r the pilot surface ships hidden, outside the console, tabs in the topbar',
     /<div id="consoleRoot">\s*<div class="console">/.test(html) &&
     /<div id="viewPilot" style="display:none">/.test(html) &&
@@ -3221,10 +3223,10 @@ function check(name, cond, detail) {
     els.pilotEmpty.style.display === 'none' && els.pilotHero.style.display === '' &&
     els.pilotHero.children.length > 0,
     els.pilotHero.children.length + ' hero blocks');
-  check('35g the headline tells the drift story in the calculator\'s numbers',
+  check('35g the headline tells the drift story in the calculator\'s numbers, abbreviated',
     els.pilotHeadline &&
-    els.pilotHeadline.textContent.indexOf(money(662945)) !== -1 &&
-    els.pilotHeadline.textContent.indexOf(money(p35walk.total)) !== -1,
+    els.pilotHeadline.textContent.indexOf('$662.9K') !== -1 &&
+    els.pilotHeadline.textContent.indexOf(moneyShort(p35walk.total)) !== -1,
     els.pilotHeadline ? els.pilotHeadline.textContent : '(no headline)');
   clearLastRun();
   renderPilot();
