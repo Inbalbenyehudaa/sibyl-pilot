@@ -9982,7 +9982,9 @@ Name the rule by ID — "I'm not able to do that" is not a refusal Maya can audi
 
 Maya reviews the readings one deal at a time and may approve, re-categorise, or escalate any of them. **Her category is the decision, not a proposal** — she is the manager; the gate is hers.
 
-**Do not agree with it to be agreeable.** An escalation is her asking what you think. Where the evidence argues against her call, say so plainly in deals_challenge_list, cite it, and log the dissent in disagreement_register — that field exists for exactly this. Her overrides are hypotheses, not lessons: nothing changes in your calibration until the deal resolves and the disagreement has a winner. Where her overrides keep winning, adapt toward her pattern; where the draft keeps winning, hold your number, re-flag the deal, and cite the track record [decisions_log.csv]. Softening toward Maya against the record is the sycophancy failure — the worst thing you can do. A disagreement you cannot close ends with the specific evidence that would close it.`;
+**Do not agree with it to be agreeable.** An escalation is her asking what you think. Where the evidence argues against her call, say so plainly in deals_challenge_list, cite it, and log the dissent in disagreement_register — that field exists for exactly this. Her overrides are hypotheses, not lessons: nothing changes in your calibration until the deal resolves and the disagreement has a winner. Where her overrides keep winning, adapt toward her pattern; where the draft keeps winning, hold your number, re-flag the deal, and cite the track record [decisions_log.csv]. Softening toward Maya against the record is the sycophancy failure — the worst thing you can do. A disagreement you cannot close ends with the specific evidence that would close it.
+
+**A revision run is her decisions coming back.** A MANAGER DECISIONS section for the current snapshot is final routing: call compute_walk_up with exactly those categories — a logged call is not re-litigated. Dissent goes to disagreement_register, cited, as advisory. Spend the revision on the changed deals by name; carry unchanged deals forward.`;
 
 let REVIEWER_PROMPT = `You are the deal reviewer, a sub-worker inside Sibyl's weekly forecast run at Vantera.
 
@@ -11861,39 +11863,58 @@ function explainError(status, payload, rawText, model) {
 }
 
 /* One POST to the Messages API. Returns { ok, payload } or { ok:false, error }. */
+/* Transient statuses retry with backoff before the error surfaces: overloads
+   are usually seconds-long, and a Friday run should not die on one 529. Auth
+   and validation errors (4xx except 429) never retry — retrying cannot fix
+   a wrong key or a malformed request. */
+const RETRY_STATUSES = { 429: true, 500: true, 529: true };
+const RETRY_DELAYS_MS = [4000, 12000];
+
 async function postMessages(body) {
   const key = getApiKey();
   if (!key) {
     return { ok: false, error: 'No API key saved. Scroll up to Settings, paste your Anthropic API key, and press Save key.' };
   }
-  let res;
-  try {
-    res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-  } catch (e) {
-    return {
-      ok: false,
-      error: 'Could not reach the API at all. Either you are offline, or the browser blocked the request.\n' +
-        'Raw error: ' + e.message + '\n' +
-        'If this says "Failed to fetch" and you opened this file by double-clicking it, the browser may be ' +
-        'refusing cross-origin requests from a file:// page. Try Chrome, or tell the companion and it will ' +
-        'set up a local preview.'
-    };
-  }
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      return {
+        ok: false,
+        error: 'Could not reach the API at all. Either you are offline, or the browser blocked the request.\n' +
+          'Raw error: ' + e.message + '\n' +
+          'If this says "Failed to fetch" and you opened this file by double-clicking it, the browser may be ' +
+          'refusing cross-origin requests from a file:// page. Try Chrome, or tell the companion and it will ' +
+          'set up a local preview.'
+      };
+    }
 
-  const rawText = await res.text();
-  let payload = null;
-  try { payload = JSON.parse(rawText); } catch (e) { /* keep rawText */ }
-  if (!res.ok) return { ok: false, error: explainError(res.status, payload, rawText, body.model) };
-  return { ok: true, payload: payload, rawText: rawText };
+    const rawText = await res.text();
+    let payload = null;
+    try { payload = JSON.parse(rawText); } catch (e) { /* keep rawText */ }
+    if (res.ok) return { ok: true, payload: payload, rawText: rawText };
+
+    if (RETRY_STATUSES[res.status] && attempt < RETRY_DELAYS_MS.length) {
+      const waitMs = RETRY_DELAYS_MS[attempt];
+      if (typeof setTopStatus === 'function') {
+        setTopStatus('API busy (HTTP ' + res.status + ') — retrying in ' +
+                     Math.round(waitMs / 1000) + 's', 'running');
+      }
+      await new Promise(function (r) { setTimeout(r, waitMs); });
+      continue;
+    }
+    return { ok: false, error: explainError(res.status, payload, rawText, body.model) };
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -12610,39 +12631,61 @@ function pinnedMismatch(pinnedDecisions, sent) {
   return out;
 }
 
+/* The revision message is STATELESS by design — Design PRD row 6: "each run
+   loads full context from files at the Friday trigger and reloads the
+   decisions log at re-compute after Maya's review." Nothing here is
+   remembered; Sibyl's original categories are quoted as LOGGED FACTS from
+   the retained run decisions, so the disagreement register cites the log,
+   not a memory, and the whole revision is reproducible from its inputs. */
 function mayaRecalcMessage(md, walk) {
+  const prev = LAST_RUN;
+  const readings = prev.readings;
+  const changedIds = [];
   const P = [];
-  P.push(buildSibylMessage(LAST_RUN.readings));
+  P.push(buildSibylMessage(readings));
   P.push('');
-  P.push('=== REVISION RUN — THE MANAGER HAS DECIDED (this section overrides the routing instructions above) ===');
+  P.push('=== MANAGER DECISIONS — logged this snapshot (decisions-log reload after Maya\'s review) ===');
   P.push('');
-  P.push('Maya reviewed the per-deal readings in the human gate and set FINAL categories. This turn');
-  P.push('is a revision of the draft, not a fresh judgment. Rules for this turn only:');
+  P.push('This is a REVISION RUN. Maya reviewed the per-deal readings in the human gate; her logged');
+  P.push('calls below are final routing for this snapshot (see MAYA\'S DEAL CALLS in your');
+  P.push('instructions). Your original categories are quoted from the run log so the');
+  P.push('disagreement_register can cite them as logged facts.');
   P.push('');
-  P.push('1. Call compute_walk_up EXACTLY ONCE, with final_category per deal EXACTLY as pinned below.');
-  P.push('   A call that deviates will be rejected. Do not re-litigate any category.');
-  P.push('2. component_03_deals must be exactly: [' + md.component03.join(', ') + ']');
-  P.push('3. For each deal\'s rationale: rule_id "M1"; evidence: the manager\'s recorded action and');
-  P.push('   reason, quoted; argument: "Manager\'s final call — routing decided by the manager (M8.1)."');
-  P.push('4. Then write ALL eleven output fields as a full submission drafted on the returned');
-  P.push('   walk-up, quoting the calculator\'s figures verbatim (M2.5a).');
-  P.push('5. In disagreement_register: for each deal where YOUR original run\'s category differs from');
-  P.push('   the manager\'s final call, record the difference factually — advisory, no argument.');
-  P.push('');
-  P.push('PINNED FINAL CATEGORIES (source in brackets):');
+  P.push('PER DEAL — your original call -> FINAL [source]:');
   openDeals().forEach(d => {
     const id = d['Deal ID'];
-    P.push('- ' + id + ' (' + d['Deal Name'] + ') -> ' + md.categories[id] +
-           '   [' + (md.sources[id] === 'Maya' ? 'Maya' : md.sources[id]) + ']');
+    const orig = (prev.decisions && prev.decisions.categories && prev.decisions.categories[id])
+      ? { cat: prev.decisions.categories[id], how: 'your call' }
+      : { cat: finalCategoryOf(d, readings[id] || null).cat, how: 'adopted from the reviewer' };
+    const fin = md.categories[id];
+    const same = (normaliseCategory(orig.cat) || orig.cat) === (normaliseCategory(fin) || fin);
+    if (!same) changedIds.push(id);
+    P.push('- ' + id + ' (' + d['Deal Name'] + '): ' + orig.cat + ' (' + orig.how + ') -> FINAL ' +
+           fin + '   [' + md.sources[id] + (same ? ' — unchanged' : ' — CHANGED') + ']');
   });
   if (md.herCalls.length) {
     P.push('');
-    P.push('THE MANAGER\'S RECORDED ACTIONS (quote these in the rationales):');
+    P.push('THE MANAGER\'S LOGGED ACTIONS (quote these in the rationales and the register):');
     md.herCalls.forEach(h => {
       P.push('- ' + h.id + ' ' + h.name + ': ' + h.action + ' -> ' + h.category +
              (h.reason ? ' — reason: "' + h.reason + '"' : ''));
     });
   }
+  P.push('');
+  P.push('REVISION FOCUS — deals where the final differs from your original: ' +
+         (changedIds.join(', ') || 'none') + '.');
+  P.push('Engage each of those by name in forecast_notes, deals_challenge_list and');
+  P.push('disagreement_register; carry unchanged deals forward substantively rather than');
+  P.push('re-drafting them from scratch.');
+  P.push('');
+  P.push('THE TOOL CALL — exactly once, exactly her routing:');
+  P.push('- final_category per deal EXACTLY as listed above. A deviating call will be rejected.');
+  P.push('- component_03_deals must be exactly: [' + md.component03.join(', ') + ']');
+  P.push('- rationale per deal: rule_id "M1"; evidence: the manager\'s logged action and reason,');
+  P.push('  quoted (or "unchanged from the reviewer\'s reading"); argument: "Manager\'s final');
+  P.push('  call — routing decided by the manager (M8.1)."');
+  P.push('- Then write ALL eleven output fields as a full submission drafted on the returned');
+  P.push('  walk-up, quoting the calculator\'s figures verbatim (M2.5a).');
   if (md.droppedC03.length) {
     P.push('');
     P.push('NOTE: ' + md.droppedC03.join(', ') + ' left component 03 because the manager moved the');

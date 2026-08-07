@@ -767,8 +767,11 @@ function check(name, cond, detail) {
      accretive fixes; the restructure took it to ~12.6K. A future fix that
      pushes past this ceiling should hurt — say the rule where a decision is
      made instead of adding a section. */
-  check('7x9 the prompt stays under 13,500 chars — accretion now fails the build',
-    SIBYL_PROMPT.length < 13500,
+  /* Cap raised 13,500 -> 14,000 on 2026-08-07 for ONE deliberate scope
+     addition: the revision-run rule in MAYA'S DEAL CALLS (the prompt-22
+     loop is a new run type, not accretion). Next raise needs a next reason. */
+  check('7x9 the prompt stays under 14,000 chars — accretion still fails the build',
+    SIBYL_PROMPT.length < 14000,
     SIBYL_PROMPT.length + ' chars');
 
   /* 7y — the 2026-08-06 live-run regressions, pinned. */
@@ -3082,6 +3085,21 @@ function check(name, cond, detail) {
     recalcReady() === true &&
     (() => { setLastRun({ readings: mrReadings, text: 'x', refusal: { refused: true } });
              const r = recalcReady(); return r === false; })());
+  /* 34h — the revision message is the PRD's stateless decisions-log reload:
+     original categories quoted as logged facts, the delta named, the manager
+     rule present in the system prompt (Design PRD row 6). */
+  setLastRun({ readings: mrReadings, text: 'stub draft', scan: { values: {} },
+               refusal: { refused: false },
+               decisions: { categories: (() => { const o = {}; o[mrA] = 'Best Case'; return o; })(),
+                            component03: [], bestCaseRationale: 'x' } });
+  dealEdit(mrA, dealGateContext(mrA).resolved === 'Commit' ? 'Pipeline' : 'Commit', 'harness delta');
+  const mrMsg = mayaRecalcMessage(mayaDecisions(), null);
+  check('34h the revision message reloads the decisions log — original vs final, delta named, rule in prompt',
+    mrMsg.indexOf('MANAGER DECISIONS — logged this snapshot') !== -1 &&
+    mrMsg.indexOf(mrA) !== -1 && /CHANGED/.test(mrMsg) &&
+    mrMsg.indexOf('REVISION FOCUS') !== -1 &&
+    /MANAGER DECISIONS section for the current snapshot/.test(SIBYL_PROMPT) &&
+    /RETRY_DELAYS_MS/.test(js));
   dealGateReset(); clearLastRun();
 
   console.log(results.join('\n'));
