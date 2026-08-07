@@ -341,7 +341,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'EVAL_EXPECTED, EVAL_RESULT, EVAL_VERDICTS, VERDICT_TONE, renderEvals, runEvalCase, ' +
   'setEvalVerdict, evalCounts, evalExpected, evalActualFromRun, evalReusableRun, mayaReplies, ' +
   'stubReason, stubReasonShort, rationaleProblems, decisionsFromToolInput, flattenRationale, ' +
-  'WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText, ' +
+  'WALK_UP_FINAL, walkUpText, plainValue, parseSibylFields, decisionStats, decisionStatsText, ' +
   'buildDealPayload, getLastRun: () => LAST_RUN, clearLastRun: () => { LAST_RUN = null; }, ' +
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
@@ -373,7 +373,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         EVAL_EXPECTED, EVAL_RESULT, EVAL_VERDICTS, VERDICT_TONE, renderEvals, runEvalCase,
         setEvalVerdict, evalCounts, evalExpected, evalActualFromRun, evalReusableRun, mayaReplies,
         stubReason, stubReasonShort, rationaleProblems, decisionsFromToolInput, flattenRationale,
-        WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
+        WALK_UP_FINAL, walkUpText, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
@@ -866,6 +866,36 @@ function check(name, cond, detail) {
     SIBYL_FIELDS.every(f => new RegExp('^\\d+\\. ' + f + ' —', 'm').test(SIBYL_PROMPT)) &&
     !/eleven labelled output fields/.test(SIBYL_PROMPT),
     SIBYL_FIELDS.length + ' labels, each enumerated');
+
+  /* 7x11 (§57) — 7x10's companion for the RUNTIME text. The prompt dropped
+     its count words on 2026-08-07; the payload and the tool footers kept
+     "eleven", and the very next live run reconciled the contradiction by
+     writing eleven fields — two never arrived. No model-visible runtime
+     string may carry a field count, and the payload points at field 13. */
+  check('7x11 the runtime text carries no field count — payload and footers defer to the WRITE list',
+    !/eleven|twelve|thirteen/i.test(sibylPayload) &&
+    sibylPayload.indexOf('Field 13, sibyl_reading') !== -1 &&
+    sibylPayload.indexOf('WRITE list in full') !== -1 &&
+    !/eleven labell?ed output fields/.test(js) &&
+    /THE WALK-UP ABOVE IS COMPUTED[\s\S]{0,600}?WRITE list in full/.test(js) &&
+    /THE WALK-UP ABOVE IS FINAL[\s\S]{0,300}?WRITE list in\W+full/.test(js) &&
+    /ALREADY FINAL[\s\S]{0,300}?WRITE list in\W+full/.test(js),
+    'no count word in payload or footers; field 13 named');
+
+  /* 7x12 (§57) — fields 3 and 8, calculator-owned (the 28.4 pattern one
+     field over): the pool total and the per-rep rows print in the walk-up
+     text so the model quotes them instead of re-litigating the quote-only
+     rule and doing the subtraction itself. */
+  const g2w = computeWalkUp({ categories: {}, rationales: {}, component03: [],
+    bestCaseRationale: '', acceptUnlisted: true }, {});
+  const g2t = walkUpText(g2w);
+  check('7x12 suggested_best_case and per_rep_forecast are calculator figures in the walk-up text',
+    g2w.perRep && g2w.perRep.length === 5 &&
+    g2w.perRep.filter(p => p.rep === 'Cody Danforth')[0].ownCall === 39000 &&
+    /suggested_best_case: \$\d/.test(g2t) &&
+    /per_rep_forecast \(M2\.5a — quote these rows verbatim/.test(g2t) &&
+    /Cody Danforth: suggested commit \$[\d,]+ vs own call \$39,000 -> delta [+-]\$[\d,]+/.test(g2t),
+    g2w.perRep.map(p => p.rep.split(' ')[0] + ' ' + money(p.commit)).join(' · '));
 
   /* 7y — the 2026-08-06 live-run regressions, pinned. */
   check('7y1 Decide is scoped to the best-case pool — reviewer Commits are not re-litigated',

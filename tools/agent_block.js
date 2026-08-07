@@ -1127,9 +1127,41 @@ function computeWalkUp(decisions, readings) {
     }
   }
 
+  /* Field 8, computed HERE (§57 — the same 28.4 pattern one field over):
+     M2.5a names per-rep roll-ups as calculator work, yet the calculator
+     never returned them, so every run re-litigated the quote-only rule in
+     thinking and then did the subtraction itself. The rep's own call is
+     their full-quarter submission from topdown_metrics.csv — wider scope
+     than this snapshot, and the render says so. */
+  const tdReps = DB['topdown_metrics.csv']
+    ? DB['topdown_metrics.csv'].rows.filter(r => !/team/i.test(String(r['Name'])))
+    : [];
+  const perRepMap = {};
+  open.forEach(d => {
+    const id = d['Deal ID'];
+    const rep = d['Owner'];
+    if (!perRepMap[rep]) perRepMap[rep] = { rep: rep, commit: 0, deals: 0, flags: 0 };
+    perRepMap[rep].deals += 1;
+    if (applied[id] && applied[id].cat === 'Commit') {
+      perRepMap[rep].commit += num(d['Exit ARR Impact Amount']);
+    }
+    const rr = readings ? readings[id] : null;
+    if (rr && rr.parsed &&
+        String(rr.verdict || '').toUpperCase().indexOf('CHALLENGE') !== -1) {
+      perRepMap[rep].flags += 1;
+    }
+  });
+  const perRep = Object.keys(perRepMap).sort().map(rep => {
+    const row = perRepMap[rep];
+    const td = tdReps.filter(t => String(t['Name']) === rep)[0];
+    row.ownCall = td && td['Forecast'] ? num(td['Forecast']) : null;
+    row.delta = row.ownCall === null ? null : row.commit - row.ownCall;
+    return row;
+  });
+
   return {
     deltaFromLastWeek: deltaFromLastWeek, lastSubmitted: lastSubmitted,
-    bottomsUp: bottomsUp, drift: drift,
+    bottomsUp: bottomsUp, drift: drift, perRep: perRep,
     c01: fixed.c01, c02: c02, c03: c03, c04: c04, c05: fixed.c05,
     c01Source: fixed.c01Source, prior: prior,
     bestCasePool: bestCasePool, in03: in03, out03: out03,
@@ -1191,6 +1223,10 @@ function walkUpText(w) {
            '   (draft vs the team\'s own bottoms-up roll-up ' + money(w.bottomsUp) +
            ' [topdown_metrics.csv])');
   }
+  /* §57 — field 3 is a quote, not a derivation: the pool total is printed
+     here so suggested_best_case never needs the model's own summation. */
+  L.push('  suggested_best_case: ' + money(w.bestCasePool) +
+         '   (the best-case pool — the sum of the reviewer\'s Best Case readings; quote it verbatim)');
   L.push('');
   L.push('    01. Closed Won: ' + money(w.c01) + ' ' + deltaText(w.c01, p.c01));
   L.push('    02. Deal Forecast (100% included): ' + money(w.c02) + ' ' + deltaText(w.c02, p.c02));
@@ -1202,6 +1238,17 @@ function walkUpText(w) {
   L.push('    04. Pipeline Volume Conversion: ' + money(w.c04) + ' ' + deltaText(w.c04, p.c04));
   L.push('    05. Create & Close / Pull-In: ' + money(w.c05) + ' ' + deltaText(w.c05, p.c05));
   L.push('');
+  /* §57 — field 8 rows, calculator-owned per M2.5a. */
+  if (w.perRep && w.perRep.length) {
+    L.push('  per_rep_forecast (M2.5a — quote these rows verbatim; the own call is the rep\'s ' +
+           'full-quarter submission [topdown_metrics.csv], wider than this snapshot):');
+    w.perRep.forEach(pr => L.push('    ' + pr.rep + ': suggested commit ' + money(pr.commit) +
+      ' vs own call ' + (pr.ownCall === null ? 'n/a' : money(pr.ownCall)) + ' -> delta ' +
+      (pr.delta === null ? 'n/a'
+        : (pr.delta >= 0 ? '+' : '-') + money(Math.abs(pr.delta))) +
+      ' · ' + pr.flags + ' flag' + (pr.flags === 1 ? '' : 's')));
+    L.push('');
+  }
   L.push('  Per-deal routing:');
   L.push(w.detail.join('\n'));
   if (w.defaulted && w.defaulted.length) {
@@ -1435,11 +1482,11 @@ function buildSibylMessage(readings) {
   P.push('1. Make your calls — where you depart from the reviewer, plus the named component-03 ' +
          'deals — and state them by calling the compute_walk_up tool. Do not write any output ' +
          'field before the tool has returned.');
-  P.push('2. The calculator returns the walk-up. Then produce all eleven labeled output fields. ' +
-         'Every figure in fields 1-12 comes from the calculator\'s return, verbatim (M2.5a). ' +
-         'Field 11, sibyl_reading, is yours: advisory, manager-only, exempt from the ' +
-         'no-arithmetic rule per M2.5b — label any figure you compute yourself and show the ' +
-         'working (M10.6).');
+  P.push('2. The calculator returns the walk-up. Then produce the WRITE list in full — every ' +
+         'numbered item, one labelled field per item, none omitted. Every figure in fields 1-12 ' +
+         'comes from the calculator\'s return, verbatim (M2.5a). Field 13, sibyl_reading, is ' +
+         'yours: advisory, manager-only, exempt from the no-arithmetic rule per M2.5b — label ' +
+         'any figure you compute yourself and show the working (M10.6).');
   P.push('');
   P.push('The walk-up is not given to you, because it is the OUTPUT of your judgment, not an ' +
          'input to it. Components 02, 03 and 04 all depend on which category each deal ends up ' +
@@ -1797,8 +1844,8 @@ const WALK_UP_DONE =
   'override, component-03 deals you meant to name — send ONE corrected call now with the ' +
   'changed arguments, and the new result replaces this one. Otherwise there is nothing to ' +
   'verify by calling again: re-sending identical arguments is a stall and ends the run with ' +
-  'no draft. Once the calls match your judgment, your next message is the eleven labelled ' +
-  'output fields, quoting the figures above verbatim.';
+  'no draft. Once the calls match your judgment, your next message is the WRITE list in full — ' +
+  'every labelled output field, quoting the figures above verbatim.';
 
 /* The SECOND computed walk-up is FINAL (§51): the single licensed correction
    has been used, so this footer replaces the invitation. Re-inviting a
@@ -1806,16 +1853,16 @@ const WALK_UP_DONE =
    the cap — five calls, no draft. */
 const WALK_UP_FINAL =
   'THE WALK-UP ABOVE IS FINAL. The one corrected call this run licenses has been used — do not ' +
-  'call compute_walk_up again. Your next message is the eleven labelled output fields, quoting ' +
-  'the figures above verbatim.';
+  'call compute_walk_up again. Your next message is the WRITE list in full — every labelled ' +
+  'output field, quoting the figures above verbatim.';
 
 /* §56 (F3) — a call arriving AFTER the final footer neither recomputes nor
    rejects: the standing result is echoed unchanged, so a late junk call can
    no longer stack alarming calculator notes onto a finished walk-up. */
 const WALK_UP_STANDS =
   'ALREADY FINAL — nothing was recomputed and nothing about this call is on the record. The ' +
-  'standing walk-up is repeated below, unchanged. Your next message is the eleven labelled ' +
-  'output fields, quoting its figures verbatim.';
+  'standing walk-up is repeated below, unchanged. Your next message is the WRITE list in ' +
+  'full — every labelled output field, quoting its figures verbatim.';
 
 const WALK_UP_TOOL = {
   name: 'compute_walk_up',
@@ -2640,7 +2687,7 @@ async function runMayaRecalc() {
   renderStatusBand(document.getElementById('runStatus'), band);
   setTopStatus('REVISED — Maya\'s calls', band.tone === 'ok' ? 'ok' : 'warn');
   const header = [];
-  header.push('=== MAYA\'S REVISION — all eleven fields redrafted on HER walk-up ===');
+  header.push('=== MAYA\'S REVISION — the full WRITE list redrafted on HER walk-up ===');
   header.push('');
   header.push(walkUpText(s.walk || mayaWalk));
   header.push('');
