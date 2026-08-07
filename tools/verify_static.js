@@ -313,6 +313,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
+  'buildPilotModel, pilotTopdown, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -342,6 +343,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
+        buildPilotModel, pilotTopdown,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -2003,7 +2005,7 @@ function check(name, cond, detail) {
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState',
     'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
-    'worldcheckRoot'];
+    'worldcheckRoot', 'pilotEmpty', 'pilotHero'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -3150,6 +3152,85 @@ function check(name, cond, detail) {
     /MANAGER DECISIONS section for the current snapshot/.test(SIBYL_PROMPT) &&
     /RETRY_DELAYS_MS/.test(js));
   dealGateReset(); clearLastRun();
+
+  /* ═══ 35 — P4 Inc 1: the pilot view-model contract ═══
+     buildPilotModel() is the pilot surface's API: every number mirrors the
+     calculator or a table verbatim; the model's prose rides along unparsed.
+     The renderer swaps the empty state for the hero and back. */
+  SCENARIO = 'gate'; resetCapture();
+  renderPilot();
+  check('35a with no run the pilot model is null and the empty state stands',
+    buildPilotModel() === null &&
+    els.pilotEmpty.style.display === '' && els.pilotHero.style.display === 'none',
+    'model null, empty state shown');
+
+  const p35readings = (await runAllDeals(() => {})).readings;
+  /* A REAL weekly run always carries decisions (the model's compute_walk_up
+     call), so the walk is never a baseline — mirror that: categories from the
+     readings, component 03 naming every Best Case deal. */
+  const p35cats = {}, p35c03 = [];
+  OPEN_DEALS.forEach(d => {
+    const id = d['Deal ID'];
+    const fin = (function () {
+      const r = p35readings[id];
+      if (!r || !r.parsed) return d['Forecast'];
+      const v = String(r.verdict || '').toUpperCase();
+      return v.indexOf('CHALLENGE') !== -1 && r.reviewer_category
+        ? r.reviewer_category : d['Forecast'];
+    })();
+    p35cats[id] = fin;
+    if (fin === 'Best Case') p35c03.push(id);
+  });
+  const p35decisions = { categories: p35cats, component03: p35c03, bestCaseRationale: 'harness' };
+  const p35walk = computeWalkUp(p35decisions, p35readings);
+  setLastRun({ n: 99, at: '12:00:00', kind: 'weekly', faulted: false, error: '',
+    band: { code: 'OK', tone: 'ok' },
+    scan: { parsed: true, found: [], missing: [], values: { forecast_notes: 'notes35' } },
+    refusal: { refused: false }, readings: p35readings, walk: p35walk,
+    text: '', decisions: p35decisions });
+  const m35 = buildPilotModel();
+  check('35b every model number is the calculator\'s, not its own arithmetic',
+    m35 !== null &&
+    m35.numbers.suggestedForecast === p35walk.total &&
+    m35.numbers.teamBottomsUp === 662945 &&
+    m35.numbers.drift === p35walk.drift &&
+    m35.numbers.bestCaseTotal === p35walk.total + p35walk.bestCasePool &&
+    m35.numbers.components.length === 5 &&
+    m35.numbers.components[0].value === p35walk.c01,
+    m35 ? money(m35.numbers.suggestedForecast) + ' / drift ' + m35.numbers.drift : 'null model');
+  check('35c run-independent numbers come straight from topdown_metrics.csv',
+    m35.numbers.quota === 1015446 && m35.numbers.closedWon === 445679 &&
+    m35.numbers.attainmentPct === 44 && m35.meta.manager === 'Maya Delgado',
+    money(m35.numbers.closedWon) + ' of ' + money(m35.numbers.quota) + ' · ' +
+    m35.numbers.attainmentPct + '%');
+  check('35d eight deals with the reviewer\'s verdicts, reps rolled up to eight',
+    m35.deals.length === 8 &&
+    m35.deals.every(d => /^DL-\d{4}$/.test(d.id) && d.amount > 0) &&
+    m35.numbers.challengedCount === m35.deals.filter(d => d.challenged).length &&
+    m35.reps.reduce((s, r2) => s + r2.dealCount, 0) === 8 &&
+    m35.prose.forecastNotes === 'notes35',
+    m35.deals.length + ' deals · ' + m35.numbers.challengedCount + ' challenged · ' +
+    m35.reps.length + ' reps');
+  check('35e the decisions record is counted from the log, not narrated',
+    m35.record.resolved === 6 && m35.record.draftWins === 4 && m35.record.mayaWins === 2 &&
+    m35.record.winRatePct === 33,
+    m35.record.draftWins + ' draft / ' + m35.record.mayaWins + ' Maya of ' + m35.record.resolved);
+
+  selectTab('pilot');
+  check('35f after a run the pilot swaps the empty state for the hero',
+    els.pilotEmpty.style.display === 'none' && els.pilotHero.style.display === '' &&
+    els.pilotHero.children.length > 0,
+    els.pilotHero.children.length + ' hero blocks');
+  check('35g the headline tells the drift story in the calculator\'s numbers',
+    els.pilotHeadline &&
+    els.pilotHeadline.textContent.indexOf(money(662945)) !== -1 &&
+    els.pilotHeadline.textContent.indexOf(money(p35walk.total)) !== -1,
+    els.pilotHeadline ? els.pilotHeadline.textContent : '(no headline)');
+  clearLastRun();
+  renderPilot();
+  check('35h clearing the run returns the pilot to its empty state',
+    els.pilotEmpty.style.display === '' && els.pilotHero.style.display === 'none');
+  selectTab('console');
 
   console.log(results.join('\n'));
   const fails = results.filter(r => r.indexOf('FAIL') === 0).length;

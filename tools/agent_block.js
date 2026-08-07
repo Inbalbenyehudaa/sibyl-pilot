@@ -5214,8 +5214,214 @@ function selectTab(which) {
   if (ACTIVE_TAB === 'pilot') renderPilot();
 }
 
+/* ---- the view-model: the pilot's API contract (PILOT_CONTRACT.md v1) ----
+   One pure read over the state the app already holds. Every NUMBER comes
+   from the calculator (computeWalkUp) or straight from a table — never from
+   the model's prose; PROSE fields carry the model's own words unparsed.
+   Returns null when there is nothing defensible to show (no run, an error,
+   a refusal, or a blocked walk-up). */
+
+function pilotTopdown() {
+  const rows = DB['topdown_metrics.csv'] ? DB['topdown_metrics.csv'].rows : [];
+  const team = rows.filter(r => /'s team$/.test(String(r['Name'] || '')))[0];
+  if (!team) return { quota: null, closedWon: null, attainmentPct: null, manager: '' };
+  return {
+    quota: num(team['Quota']),
+    closedWon: num(team['Gross New ARR Attainment']),
+    attainmentPct: Math.round(num(team['Gross New ARR attainment to target'])),
+    manager: String(team['Name']).replace(/'s team$/, '')
+  };
+}
+
+function pilotEvidenceLines(v) {
+  return String(v || '').split('\n')
+    .map(s => s.replace(/^\s*[-*+]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function buildPilotModel() {
+  const run = LAST_RUN;
+  if (!run || run.error || (run.refusal && run.refusal.refused)) return null;
+  const readings = run.readings || {};
+  /* A restored run carries no walk — recompute from the stored decisions and
+     readings: same inputs, same calculator, same figures. */
+  const walk = run.walk || computeWalkUp(run.decisions || null, readings);
+  if (!walk || (walk.blocked && walk.blocked.length)) return null;
+
+  const scanVals = (run.scan && run.scan.values) || {};
+  const td = pilotTopdown();
+  const stats = decisionStats();
+  const applied = walk.applied || {};
+
+  const deals = openDeals().map(d => {
+    const id = d['Deal ID'];
+    const r = readings[id] && readings[id].parsed ? readings[id] : null;
+    const g = DEAL_GATE[id] || null;
+    const fin = finalCategoryOf(d, readings[id]);
+    const appliedCat = applied[id] && applied[id].cat ? applied[id].cat : fin.cat;
+    const verdict = r ? String(r.verdict || '').toUpperCase() : '';
+    return {
+      id: id,
+      name: d['Deal Name'],
+      rep: d['Owner'],
+      stage: d['Stage'],
+      amount: num(d['Exit ARR Impact Amount']),
+      closeDate: d['Close Date'],
+      repCategory: d['Forecast'],
+      reviewerCategory: r ? (normaliseCategory(r.reviewer_category) || fin.cat) : fin.cat,
+      verdict: verdict,
+      challenged: verdict.indexOf('CHALLENGE') !== -1,
+      confidence: r ? String(r.confidence || '') : '',
+      wowChange: r ? String(r.wow_change || '') : '',
+      evidence: r ? pilotEvidenceLines(r.evidence) : [],
+      recommendedAction: r ? String(r.recommended_action || '') : '',
+      mayaCall: g && g.action
+        ? { action: g.action, category: g.category || '', reason: g.reason || '', at: g.at || '' }
+        : null,
+      finalCategory: g && g.category ? g.category : appliedCat,
+      appliedCategory: appliedCat,
+      pendingRecalc: !!(g && g.category && applied[id] && applied[id].cat &&
+                        applied[id].cat !== g.category)
+    };
+  });
+
+  const reps = [];
+  deals.forEach(dl => {
+    let row = reps.filter(x => x.name === dl.rep)[0];
+    if (!row) { row = { name: dl.rep, dealCount: 0, commit: 0, challenged: 0 }; reps.push(row); }
+    row.dealCount += 1;
+    if (dl.appliedCategory === 'Commit') row.commit += dl.amount;
+    if (dl.challenged) row.challenged += 1;
+  });
+  reps.sort((a, b) => b.commit - a.commit || (a.name < b.name ? -1 : 1));
+
+  const rec = stats.record;
+  const challenged = deals.filter(d => d.challenged);
+  return {
+    meta: {
+      week: stats.week,
+      snapshotDate: (DB['deals_current.csv'].rows[0] || {})['Snapshot Date'] || '',
+      manager: td.manager,
+      runN: run.n, at: run.at, kind: run.kind,
+      revised: run.kind === 'maya-revision',
+      restored: run.kind === 'restored',
+      band: run.band ? run.band.code : ''
+    },
+    numbers: {
+      suggestedForecast: walk.total,
+      bestCasePool: walk.bestCasePool,
+      bestCaseTotal: walk.total + walk.bestCasePool,
+      teamBottomsUp: walk.bottomsUp,
+      drift: walk.drift,
+      deltaFromLastWeek: walk.deltaFromLastWeek,
+      lastSubmitted: walk.lastSubmitted,
+      components: [
+        { n: '01', label: 'Closed Won', value: walk.c01 },
+        { n: '02', label: 'Deal Forecast (100% included)', value: walk.c02 },
+        { n: '03', label: 'Portion of Deal Best Case', value: walk.c03 },
+        { n: '04', label: 'Pipeline Volume Conversion', value: walk.c04 },
+        { n: '05', label: 'Create & Close / Pull-In', value: walk.c05 }
+      ],
+      challengedCount: challenged.length,
+      challengedAmount: challenged.reduce((s, d) => s + d.amount, 0),
+      quota: td.quota, closedWon: td.closedWon, attainmentPct: td.attainmentPct
+    },
+    prose: {
+      failedChecksBanner: String(scanVals['failed_checks_banner'] || ''),
+      forecastNotes: String(scanVals['forecast_notes'] || ''),
+      chaseList: String(scanVals['chase_list'] || ''),
+      reading: String(scanVals['sibyl_reading'] ||
+                      (run.text ? splitReading(run.text).reading : '') || '')
+    },
+    deals: deals,
+    reps: reps,
+    record: {
+      resolved: rec.resolved, draftWins: rec.draftWins, mayaWins: rec.mayaWins,
+      winRatePct: rec.resolved ? Math.round(100 * rec.mayaWins / rec.resolved) : null,
+      openDisputes: rec.openDisputes, weekly: rec.weekly
+    },
+    gate: { open: !!GATE, status: gateStatus() }
+  };
+}
+
+/* ---- the hero: the drift story ------------------------------------ */
+
+function pilotEl(tag, cls, text) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+function pilotSigned(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return (n >= 0 ? '+' : '-') + money(Math.abs(n));
+}
+
 function renderPilot() {
-  /* Inc 0: the shell is static (the empty state lives in the markup).
-     Later increments swap the empty state for the populated surface
-     built from buildPilotModel(). */
+  const empty = document.getElementById('pilotEmpty');
+  const hero = document.getElementById('pilotHero');
+  if (!empty || !hero) return;
+  const m = buildPilotModel();
+  if (!m) {
+    empty.style.display = '';
+    hero.style.display = 'none';
+    hero.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  hero.style.display = '';
+  hero.textContent = '';
+
+  const meta = pilotEl('div', 'pilot-meta');
+  meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +
+    ' · ' + m.meta.snapshotDate));
+  meta.appendChild(pilotEl('span', 'pilot-pill',
+    m.meta.revised ? 'Revised · Maya\'s calls' : 'Draft · manager only'));
+  hero.appendChild(meta);
+
+  const h1 = pilotEl('p', 'pilot-h1',
+    'Your team says ' + money(m.numbers.teamBottomsUp) + '. The evidence supports ' +
+    money(m.numbers.suggestedForecast) + '.');
+  h1.id = 'pilotHeadline';
+  hero.appendChild(h1);
+
+  hero.appendChild(pilotEl('p', 'pilot-sub',
+    (m.numbers.challengedCount
+      ? m.numbers.challengedCount + ' deal' + (m.numbers.challengedCount === 1 ? '' : 's') +
+        ' explain' + (m.numbers.challengedCount === 1 ? 's' : '') + ' the gap. '
+      : 'No deal is challenged this week. ') +
+    'Every claim below cites a CRM field, a week-over-week delta, a call signal, ' +
+    'or a track record.'));
+
+  const card = pilotEl('div', 'pilot-hero-card');
+  const stats = pilotEl('div', 'pilot-stats');
+  [
+    { k: 'Team bottoms-up', v: money(m.numbers.teamBottomsUp), cls: '' },
+    { k: 'Evidence-supported commit', v: money(m.numbers.suggestedForecast), cls: ' accent' },
+    { k: 'Drift', v: pilotSigned(m.numbers.drift),
+      cls: m.numbers.drift !== null && m.numbers.drift < 0 ? ' neg' : ' pos' }
+  ].forEach(s => {
+    const st = pilotEl('div', 'pilot-stat');
+    st.appendChild(pilotEl('p', 'k', s.k));
+    st.appendChild(pilotEl('p', 'n' + s.cls, s.v));
+    stats.appendChild(st);
+  });
+  card.appendChild(stats);
+
+  /* Attainment gap to target — run-independent: Closed Won vs quota, both
+     straight from topdown_metrics.csv. */
+  if (m.numbers.quota) {
+    const track = pilotEl('div', 'pilot-bar-track');
+    const fill = pilotEl('div', 'pilot-bar-fill');
+    fill.style.width = Math.max(0, Math.min(100, m.numbers.attainmentPct)) + '%';
+    track.appendChild(fill);
+    card.appendChild(track);
+    card.appendChild(pilotEl('p', 'pilot-bar-label', 'Attainment gap to target'));
+    card.appendChild(pilotEl('p', 'pilot-bar-caption',
+      'Closed Won QTD ' + money(m.numbers.closedWon) + ' of ' + money(m.numbers.quota) +
+      ' target · ' + m.numbers.attainmentPct + '% attained · gap ' +
+      money(m.numbers.quota - m.numbers.closedWon)));
+  }
+  hero.appendChild(card);
 }

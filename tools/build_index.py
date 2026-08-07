@@ -488,6 +488,45 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-empty .sub { font-size: var(--fs-body-lg); color: var(--ink-2); max-width: 56ch;
                     margin: 0 0 var(--sp-5); }
 
+/* The hero — the drift story. Display tier at 56px with its tracking; money
+   renders tabular (the kit's financial-data signal). */
+#pilotHero { padding: var(--sp-6) 0 0; }
+.pilot-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+              font-size: var(--fs-0); color: var(--ink-3);
+              letter-spacing: var(--track-caption); }
+.pilot-pill { display: inline-flex; padding: 4px 10px; border-radius: var(--radius-pill);
+              background: var(--chip); color: var(--accent-deep, var(--accent));
+              font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+              letter-spacing: var(--track-micro-cap); text-transform: uppercase; }
+.pilot-h1 { font-size: var(--fs-display-xxl); font-weight: var(--w-display);
+            letter-spacing: var(--track-display-xxl); line-height: 1.03;
+            color: var(--ink); margin: var(--sp-5) 0 0; max-width: 22ch;
+            font-variant-numeric: tabular-nums; }
+.pilot-sub { font-size: var(--fs-body-lg); color: var(--ink-2);
+             margin: var(--sp-4) 0 0; max-width: 60ch; }
+.pilot-hero-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+                   border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow));
+                   padding: var(--sp-6); margin-top: var(--sp-6); }
+.pilot-stats { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-7);
+               align-items: flex-end; }
+.pilot-stat .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                 letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                 color: var(--ink-3); margin: 0; }
+.pilot-stat .n { font-size: var(--fs-display-xl); font-weight: var(--w-display);
+                 letter-spacing: var(--track-display-xl); line-height: 1.15;
+                 font-variant-numeric: tabular-nums; color: var(--ink);
+                 margin: var(--sp-1) 0 0; }
+.pilot-stat .n.accent { color: var(--accent); }
+.pilot-stat .n.neg { color: var(--ruby); }
+.pilot-stat .n.pos { color: var(--accent-deep, var(--accent)); }
+.pilot-bar-track { height: 10px; border-radius: var(--radius-pill); background: var(--chip);
+                   overflow: hidden; margin-top: var(--sp-6); }
+.pilot-bar-fill { height: 100%; background: var(--accent); border-radius: var(--radius-pill); }
+.pilot-bar-label { margin: var(--sp-3) 0 0; font-size: var(--fs-0);
+                   font-weight: var(--w-label); color: var(--ink); }
+.pilot-bar-caption { margin: var(--sp-1) 0 0; font-size: var(--fs-0); color: var(--ink-3);
+                     font-variant-numeric: tabular-nums; }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -696,7 +735,7 @@ body { overflow-x: hidden; }
      would ship it. Hidden until the Pilot tab is selected. -->
 <div id="viewPilot" style="display:none">
   <div class="pilot-wrap">
-    <div class="pilot-empty">
+    <div id="pilotEmpty" class="pilot-empty">
       <p class="pilot-eyebrow">Sibyl · pilot preview</p>
       <p class="headline">The number you can defend.</p>
       <p class="sub">Sibyl drafts the weekly forecast from the CRM snapshot, the week-over-week
@@ -705,6 +744,8 @@ body { overflow-x: hidden; }
       <button type="button" id="pilotRun" class="btn primary">Run the weekly forecast</button>
       <p class="boundary-note">Nothing is sent without human approval.</p>
     </div>
+    <!-- The populated surface — built by renderPilot() from buildPilotModel(). -->
+    <div id="pilotHero" style="display:none"></div>
   </div>
 </div>
 
