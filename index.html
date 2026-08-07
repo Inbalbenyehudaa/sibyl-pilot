@@ -11968,6 +11968,31 @@ function buildSibylMessage(readings) {
     P.push('');
   });
 
+  /* §56 (F2) — the pool defense is the one field that needs cross-deal
+     synthesis, and it is where scaffolding text kept leaking into live
+     calls. Enumerating the pool here turns that synthesis into a lookup:
+     the model sees, before its call, exactly which deals an empty
+     component 03 must defend by name. */
+  const bcPool = open.filter(d => {
+    const r = readings[d['Deal ID']];
+    return r && r.parsed && normaliseCategory(r.reviewer_category) === 'Best Case';
+  });
+  P.push('================ BEST-CASE POOL PRE-FLIGHT (from the readings above) ================');
+  if (bcPool.length) {
+    P.push('Deals whose reviewer category is Best Case this run — the component-03 pool your ' +
+           'call must own:');
+    bcPool.forEach(d => P.push('  ' + d['Deal ID'] + ' ' + d['Deal Name'] + ' · ' +
+      money(num(d['Exit ARR Impact Amount']))));
+    P.push('Component 03 may name any of them. If you name NONE, best_case_rationale must carry ' +
+           'a pool_verdict for EACH deal listed above, by ID — plus any deal your own calls move ' +
+           'into Best Case. Write every verdict before you send the call: the calculator rejects ' +
+           'unwritten reasoning, and each rejection costs a round.');
+  } else {
+    P.push('No deal carries a reviewer Best Case reading this run. If your own calls move deals ' +
+           'into Best Case, best_case_rationale must defend each of them by name.');
+  }
+  P.push('');
+
   P.push('================ FIXED COMPONENTS (computed by calculator — do not recompute) ================');
   P.push('  01 Closed Won ....... ' + money(fixed.c01) +
          '   (' + fixed.c01Source + '; cross-checked against the deal snapshot sum)');
@@ -12276,6 +12301,14 @@ const WALK_UP_FINAL =
   'call compute_walk_up again. Your next message is the eleven labelled output fields, quoting ' +
   'the figures above verbatim.';
 
+/* §56 (F3) — a call arriving AFTER the final footer neither recomputes nor
+   rejects: the standing result is echoed unchanged, so a late junk call can
+   no longer stack alarming calculator notes onto a finished walk-up. */
+const WALK_UP_STANDS =
+  'ALREADY FINAL — nothing was recomputed and nothing about this call is on the record. The ' +
+  'standing walk-up is repeated below, unchanged. Your next message is the eleven labelled ' +
+  'output fields, quoting its figures verbatim.';
+
 const WALK_UP_TOOL = {
   name: 'compute_walk_up',
   description: 'The deterministic walk-up calculator (M2.5a, M9). It starts from the deal ' +
@@ -12522,22 +12555,29 @@ function rationaleProblems(sent, walk) {
   return out;
 }
 
+/* §56 (F1) — the rejection is merge-aware: every real rationale already sent
+   this turn is retained in the bank, so the correction the model owes is ONLY
+   the pieces named below. Five live traces show it corrects in minimal diffs;
+   the gate now meets that behaviour instead of demanding a full re-send. */
 function stubCallText(problems) {
   return [
     'NOT COMPUTED — this call was REJECTED. It does not count as your one call, and nothing has',
     'been calculated from it.',
     '',
-    'What is wrong:'
+    'Still missing real reasoning (everything real you have sent this turn IS retained on the',
+    'record — do not re-send it):'
   ].concat(problems.map(p => '  ! ' + p)).concat([
     '',
     'The rationale fields are the part of this call Maya reads. A stub is not a judgment, and a',
     'walk-up built on one is not defensible — which is the whole job.',
     '',
-    'SEND THE CALL AGAIN with real reasoning in every rationale. This is required, and a corrected',
-    'call is NOT a second call: the one-call rule governs a walk-up you have already received, and',
-    'you have not received one. The rationale you sent is on no record — a rejected call leaves',
-    'nothing Maya sees. Finality applies only to accepted calls; the corrected call replaces this',
-    'one entirely. Do not work around this by writing the reasoning into the output',
+    'SEND A CORRECTION CALL carrying ONLY the missing pieces named above (keep',
+    'accept_reviewer_for_unlisted as you mean it). It merges over what you already sent: deal',
+    'rationales and pool verdicts you wrote before are kept, and a real field is never',
+    'overwritten by a stub. This correction is required, and a corrected',
+    'call is NOT a second call: the one-call rule governs a walk-up you have already received,',
+    'and you have not received one. Finality applies only to accepted calls.',
+    'Do not work around this by writing the reasoning into the output',
     'fields instead — the arguments are what produce the figures.'
   ]).join('\n');
 }
@@ -12587,6 +12627,78 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
      the write step. */
   let stubHandBacks = 0, stubFlags = [], computes = 0;
   const forcedNotes = [];
+  let lastResultText = null;
+
+  /* §56 (F1) — the rationale bank. Every trace since §46 shows the same two
+     behaviours: scaffolding ("placeholder") leaks into whichever field the
+     model deferred, and corrections arrive as MINIMAL diffs, not full
+     re-sends. The bank absorbs the best non-stub reasoning from every call
+     this turn; each incoming call is judged and computed as the MERGE of the
+     bank and itself. A stub can never overwrite real reasoning, a partial
+     correction completes the record instead of destroying it, and the
+     rejection can name exactly what is still missing. */
+  const bank = { decisions: {}, poolVerdicts: {}, summary: '' };
+
+  function bankAbsorb(sent) {
+    Object.keys(sent.categories).forEach(id => {
+      const parts = (sent.rationaleParts && sent.rationaleParts[id]) || null;
+      const stubbed = parts
+        ? !!(stubReasonShort(parts.rule_id) || stubReason(parts.evidence) || stubReason(parts.argument))
+        : !!stubReason(sent.rationales[id]);
+      if (!stubbed) {
+        bank.decisions[id] = { category: sent.categories[id],
+          rationale: sent.rationales[id], parts: parts };
+      } else if (bank.decisions[id]) {
+        /* The category is the model's latest call even when the rationale
+           text is scaffolding — the banked reasoning stays. */
+        bank.decisions[id].category = sent.categories[id];
+      }
+    });
+    if (sent.bestCaseParts) {
+      (sent.bestCaseParts.pool_verdicts || []).forEach(v => {
+        if (v && v.deal_id && !stubReason(v.reason)) {
+          bank.poolVerdicts[String(v.deal_id).toUpperCase()] = String(v.reason);
+        }
+      });
+      if (!stubReason(sent.bestCaseParts.summary)) bank.summary = String(sent.bestCaseParts.summary);
+    } else if (!stubReason(sent.bestCaseRationale)) {
+      bank.summary = String(sent.bestCaseRationale);
+    }
+  }
+
+  function bankMerged(sent) {
+    const merged = { categories: {}, rationales: {}, rationaleParts: {},
+      component03: sent.component03, acceptUnlisted: sent.acceptUnlisted,
+      bestCaseRationale: '', bestCaseParts: null };
+    Object.keys(bank.decisions).forEach(id => {
+      merged.categories[id] = bank.decisions[id].category;
+      merged.rationales[id] = bank.decisions[id].rationale;
+      if (bank.decisions[id].parts) merged.rationaleParts[id] = bank.decisions[id].parts;
+    });
+    Object.keys(sent.categories).forEach(id => {
+      merged.categories[id] = sent.categories[id];
+      if (!bank.decisions[id]) {
+        /* Nothing banked for this deal — carry the raw text so the gate can
+           name exactly what is missing. */
+        merged.rationales[id] = sent.rationales[id];
+        if (sent.rationaleParts && sent.rationaleParts[id]) {
+          merged.rationaleParts[id] = sent.rationaleParts[id];
+        }
+      }
+    });
+    const rawSummary = sent.bestCaseParts
+      ? (sent.bestCaseParts.summary || '')
+      : (typeof sent.bestCaseRationale === 'string' ? sent.bestCaseRationale : '');
+    merged.bestCaseParts = {
+      summary: bank.summary || rawSummary,
+      pool_verdicts: Object.keys(bank.poolVerdicts).map(id =>
+        ({ deal_id: id, reason: bank.poolVerdicts[id] }))
+    };
+    merged.bestCaseRationale = [merged.bestCaseParts.summary]
+      .concat(merged.bestCaseParts.pool_verdicts.map(v => v.deal_id + ': ' + v.reason))
+      .filter(Boolean).join(' · ');
+    return merged;
+  }
 
   for (let round = 0; round < 8; round++) {
     const r = await postMessages({
@@ -12621,7 +12733,6 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
       if (onStep) onStep('tool_use', tu);
 
       const sent = decisionsFromToolInput(tu.input);
-      const missing = openIds.filter(id => !sent.categories[id]);
       let resultText, isError = false;
 
       if (pinned) {
@@ -12661,8 +12772,15 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
         continue;
       }
 
+      /* §56 (F1) — this call is judged and computed as the merge of the
+         turn's bank and itself: real reasoning already sent is retained,
+         and a partial correction is a legitimate move, not a data loss. */
+      bankAbsorb(sent);
+      const eff = bankMerged(sent);
+      const missing = openIds.filter(id => !eff.categories[id]);
+
       /* The only non-computing branch left, and it fires at most once. */
-      if (missing.length && !sent.acceptUnlisted && handBacks === 0) {
+      if (missing.length && !eff.acceptUnlisted && handBacks === 0) {
         handBacks++;
         isError = true;
         resultText = unresolvedCallText(openIds, missing);
@@ -12681,7 +12799,17 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
               'is missing is the draft. This is an agent-behaviour bug: the prompt needs to be ' +
               'clearer that the tool returns once and the fields are written after it.' };
         }
-        if (missing.length && !sent.acceptUnlisted) {
+        /* §56 (F3) — the final footer has been issued: a further call neither
+           recomputes nor rejects. The standing result is echoed unchanged, so
+           a late junk call cannot stack notes onto a finished walk-up. */
+        if (computes >= 2 && lastResultText) {
+          messages.push({ role: 'assistant', content: content });
+          messages.push({ role: 'user', content: [{ type: 'tool_result',
+            tool_use_id: tu.id, content: WALK_UP_STANDS + '\n\n' + lastResultText,
+            is_error: false }] });
+          continue;
+        }
+        if (missing.length && !eff.acceptUnlisted) {
           forcedNotes.push('Sibyl left ' + missing.length + ' of ' + openIds.length +
             ' open deals unlisted (' + missing.join(', ') + ') and did not accept the reviewer\'s ' +
             'reading on them, twice. The calculator computed anyway on the reviewer\'s categories ' +
@@ -12689,9 +12817,9 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
         }
         /* Computed as a CANDIDATE first: the rationale gate needs to know the
            best-case pool to judge an empty component 03, and nothing may be
-           committed until the call passes. */
-        const candidate = computeWalkUp(sent, readings);
-        const stubs = rationaleProblems(sent, candidate);
+           committed until the call passes. Both run on the MERGED call. */
+        const candidate = computeWalkUp(eff, readings);
+        const stubs = rationaleProblems(eff, candidate);
         /* TWO rejections, not one (2026-08-06 live run): the model's first
            correction replaced "placeholder" with "x" — still a stub — and the
            single-rejection design then computed it, locking a garbage call
@@ -12707,7 +12835,8 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
           continue;
         }
         if (stubs.length) {
-          /* Rejected twice and STILL stubbed. Compute rather than lose the
+          /* Rejected twice and the MERGED call still lacks real reasoning —
+             it was never provided this turn. Compute rather than lose the
              run — the figures are real — but the rationale is not Sibyl's
              reasoning, and the band and the notes both have to say so. */
           stubFlags = stubs;
@@ -12715,7 +12844,7 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
             'same fault (' + stubs.join('; ') + '). Computed anyway rather than spend another turn — ' +
             'but the rationale is NOT Sibyl\'s reasoning, and component 03 is unowned.');
         }
-        decisions = sent;
+        decisions = eff;
         lastComputed = fingerprint;
         walk = candidate;
         if (forcedNotes.length) walk.notes = walk.notes.concat(forcedNotes);
@@ -12734,6 +12863,7 @@ async function callSibyl(systemPrompt, userMessage, readings, onStep, opts) {
           : walkUpText(walk).replace(
               'endorse them in the challenge list or call again to change them:',
               'endorse them in the challenge list:') + '\n\n' + WALK_UP_FINAL;
+        lastResultText = resultText;
         if (onStep) onStep('tool_result', walk);
       }
 

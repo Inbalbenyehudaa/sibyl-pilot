@@ -124,6 +124,26 @@ function overrideCall() {
     accept_reviewer_for_unlisted: true
   };
 }
+/* §56 fixtures. liveShapeCall is the 2026-08-07 live trace: six REAL deal
+   rationales with scaffolding left in the pool summary. patchCall is the
+   minimal-diff correction the model actually sends. junkFinalCall is the
+   post-final junk call the same trace produced. */
+function liveShapeCall() {
+  const c = fullCall();
+  c.best_case_rationale = { pool_verdicts: [], summary: 'placeholder' };
+  return c;
+}
+function patchCall() {
+  return { deal_decisions: [], component_03_deals: [],
+    best_case_rationale: poolExcuse(), accept_reviewer_for_unlisted: true };
+}
+function junkFinalCall() {
+  return { deal_decisions: [{ deal_id: 'DL-0007', final_category: 'Best Case',
+      rationale: stubRationaleObj('x') }],
+    component_03_deals: [],
+    best_case_rationale: { pool_verdicts: [], summary: 'x' },
+    accept_reviewer_for_unlisted: true };
+}
 function fullCall() {
   return {
     deal_decisions: OPEN_DEALS.map(d => ({
@@ -265,6 +285,19 @@ global.fetch = async (url, opts) => {
             : n <= 3 ? toolUse(stubCall(), n)
             : n === 4 ? toolUse(overrideCall(), n)
             : n === 5 ? toolUse(revisedCall(), n)
+            : DRAFT_TEXT;
+  } else if (SCENARIO === 'stub-then-patch') {
+    /* §56 (F1): the 2026-08-07 live shape — a rich call with one stubbed
+       field, corrected by a MINIMAL patch rather than a full re-send. */
+    payload = n === 1 ? toolUse(liveShapeCall(), n)
+            : n === 2 ? toolUse(patchCall(), n)
+            : DRAFT_TEXT;
+  } else if (SCENARIO === 'over-final') {
+    /* §56 (F3): compute, licensed revision, then a junk call AFTER the final
+       footer — it must be echoed, not recomputed and not rejected. */
+    payload = n === 1 ? toolUse(fullCall(), n)
+            : n === 2 ? toolUse(revisedCall(), n)
+            : n === 3 ? toolUse(junkFinalCall(), n)
             : DRAFT_TEXT;
   } else if (SCENARIO === 'gate') {
     payload = n === 1 ? toolUse(fullCall(), n) : DRAFT_TEXT;
@@ -621,7 +654,7 @@ function check(name, cond, detail) {
   check('7r and the rejection LICENSES the correction — the trap the live run fell into',
     rejected.is_error === true &&
     /does not count as your one call/.test(rejected.content) &&
-    /SEND THE CALL AGAIN/.test(rejected.content) &&
+    /SEND A CORRECTION CALL/.test(rejected.content) &&
     /a corrected\ncall is NOT a second call/.test(rejected.content) &&
     !/445,679|TOTAL/.test(rejected.content),
     'rejected, with no figures in it');
@@ -667,6 +700,33 @@ function check(name, cond, detail) {
       accept_reviewer_for_unlisted: true }), poolWalk).length === 0,
     bare[0] ? bare[0].slice(0, 80) : 'no problem raised');
 
+  /* 7w2/7w3 — §56 (F1/F2), from the 2026-08-07 live trace: a rich first call
+     with ONE stubbed field must be correctable by a minimal patch (the move
+     the model actually makes), with every real rationale from the first call
+     surviving into the record; and the payload must enumerate the best-case
+     pool BEFORE the call so the pool defense is a lookup, not a derivation. */
+  SCENARIO = 'stub-then-patch'; resetCapture();
+  const stepsP = [];
+  const sP = await callSibyl(SIBYL_PROMPT, 'USER MSG', {}, (k, d) => stepsP.push({ k: k, d: d }));
+  check('7w2 a minimal patch completes a rich-but-stubbed call — nothing real is lost',
+    sP.ok && sP.walk && (!sP.stubs || !sP.stubs.length) &&
+    stepsP.map(x => x.k).join(',') === 'tool_use,tool_error,tool_use,tool_result' &&
+    stepsP[1].d.problems.length === 1 &&
+    /best_case_rationale summary/.test(stepsP[1].d.problems[0]) &&
+    Object.keys(sP.decisions.categories).length === OPEN_DEALS.length &&
+    /does not carry the category/.test(sP.decisions.rationales['DL-0037'] || '') &&
+    /No conviction on any pool deal/.test(sP.decisions.bestCaseRationale),
+    'rejection named 1 problem · ' + Object.keys(sP.decisions.categories).length +
+    ' banked decisions survived the patch');
+  const pfMsg = buildSibylMessage({ 'DL-0037': { parsed: true,
+    reviewer_category: 'Best Case', verdict: 'CHALLENGE_DOWN' } });
+  check('7w3 the payload pre-flights the best-case pool by deal ID, before the call',
+    pfMsg.indexOf('BEST-CASE POOL PRE-FLIGHT') !== -1 &&
+    /DL-0037 PathPoint 5\.0/.test(pfMsg) &&
+    /pool_verdict for EACH/.test(pfMsg) &&
+    pfMsg.indexOf('placeholder') === -1,
+    'pool named by ID; no stub vocabulary in the payload');
+
   /* 7z — §51's missing guard: no check ever asserted that a run REACHES its
      final text within the cap. The worst legitimate path is exercised end to
      end: hand-back, two stub rejections, a compute (invited to correct), the
@@ -688,6 +748,27 @@ function check(name, cond, detail) {
     (!sZ.stubs || !sZ.stubs.length),
     sZ.ok ? sZ.roundTrips + ' trips · one invitation · second walk-up terminal'
           : String(sZ.error).slice(0, 90));
+
+  /* 7z2 — §56 (F3). A junk call AFTER the final footer is echoed, not
+     recomputed: no third walk-up, no rejection, no new calculator notes —
+     the 2026-08-07 trace's fourth call, absorbed instead of alarming. */
+  SCENARIO = 'over-final'; resetCapture();
+  const stepsQ = [];
+  const sQ = await callSibyl(SIBYL_PROMPT, 'USER MSG', {}, (k, d) => stepsQ.push({ k: k, d: d }));
+  const qResults = captured[captured.length - 1].messages
+    .filter(m => m.role === 'user' && Array.isArray(m.content) &&
+                 m.content[0].type === 'tool_result')
+    .map(m => m.content[0]);
+  check('7z2 a call after the final footer echoes the standing walk-up — no recompute, no new notes',
+    sQ.ok && sQ.walk &&
+    stepsQ.map(x => x.k).join(',') === 'tool_use,tool_result,tool_use,tool_result,tool_use' &&
+    qResults.length === 3 &&
+    /ALREADY FINAL/.test(qResults[2].content) &&
+    qResults[2].is_error === false &&
+    !sQ.walk.notes.some(n => /rejected twice/.test(n)) &&
+    (!sQ.stubs || !sQ.stubs.length),
+    sQ.ok ? sQ.roundTrips + ' trips · junk post-final call absorbed'
+          : String(sQ.error).slice(0, 90));
 
   /* ══ 7x — THE 2026-08-06 RESTRUCTURE (plan: prompt optimization) ═══════
      Root causes fixed: (A) figure-dependent prose was demanded in-call;
