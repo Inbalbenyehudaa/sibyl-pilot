@@ -2462,7 +2462,6 @@ function updateRecalcButton() {
 
 async function runMayaRecalc() {
   const out = document.getElementById('mayaRecalcOut');
-  const walkEl = document.getElementById('mayaWalkUp');
   if (!recalcReady()) return { ok: false, error: 'no draft to revise' };
   const md = mayaDecisions();
   const prev = LAST_RUN;
@@ -2474,8 +2473,9 @@ async function runMayaRecalc() {
     walkUpText(mayaWalk) + (inheritNotes.length ? '\n\n' + inheritNotes.join('\n') : '');
   /* Nothing renders until the redrafted notes are ready — an interim walk-up
      next to the old draft is two numbers on one screen (user decision
-     2026-08-07). The walk-up appears WITH the notes, or with the failure. */
-  if (walkEl) { walkEl.style.display = 'none'; walkEl.textContent = ''; }
+     2026-08-07). On success only the notes box populates (the walk-up lives
+     in the revised draft above); on failure the walk-up renders here, since
+     it is the thing that still stands. */
   if (out) {
     out.textContent = 'Redrafting the submission on your walk-up — the recalculated ' +
       'forecast notes will appear here.';
@@ -2490,10 +2490,9 @@ async function runMayaRecalc() {
 
   if (!s.ok) {
     setTopStatus('Revision failed', 'danger');
-    if (walkEl) { walkEl.style.display = ''; walkEl.textContent = mayaWalkBlock; }
     if (out) {
-      out.textContent = 'The redraft call failed — YOUR WALK-UP ABOVE STILL STANDS (it is the ' +
-        'calculator\'s arithmetic, not the model\'s). Error: ' + s.error;
+      out.textContent = 'The redraft call failed — YOUR WALK-UP BELOW STILL STANDS (it is the ' +
+        'calculator\'s arithmetic, not the model\'s). Error: ' + s.error + '\n\n' + mayaWalkBlock;
     }
     return { ok: false, error: s.error, walk: mayaWalk };
   }
@@ -2531,10 +2530,9 @@ async function runMayaRecalc() {
       : '(no sibyl_reading field in the revision)';
   }
 
-  /* The spotlight arrives all at once: her walk-up + the refreshed notes.
-     The advisory is NOT duplicated here — it lives in its own advisory box
-     (#runReading), refreshed above (user decision 2026-08-07). */
-  if (walkEl) { walkEl.style.display = ''; walkEl.textContent = mayaWalkBlock; }
+  /* The spotlight is the refreshed notes only — the walk-up is inside the
+     revised draft above, and the advisory lives in its own box (#runReading),
+     both refreshed there (user decisions 2026-08-07). */
   if (out) {
     const notes = (fieldScan.values || {}).forecast_notes || '(forecast_notes did not arrive — see the draft above)';
     out.textContent =

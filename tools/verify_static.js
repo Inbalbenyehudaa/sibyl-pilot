@@ -1997,7 +1997,7 @@ function check(name, cond, detail) {
     'dealGateNotice', 'dealRepNotes', 'sweepProgress', 'sweepSummary', 'apikey', 'saveKey',
     'clearKey', 'keyState', 'sibylPromptView', 'reviewerPromptView', 'app',
     'caseList', 'mainHead', 'viewSubmission', 'viewDeal', 'topStatus', 'topMeta',
-    'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaWalkUp', 'mayaRecalcOut',
+    'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaRecalcOut',
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);

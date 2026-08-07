@@ -76,6 +76,9 @@ VERIFY: `?source=api` on :8941 → `Live: Supabase`, full run identical to embed
 > **Eval status:** all five evals re-run LIVE and passed on 2026-08-07, AFTER the revision-run
 > rule was added to `sibyl_prompt.md` — the prompt-change re-run debt is settled. The rule is
 > inert without a MANAGER DECISIONS payload section, and the live run confirms it.
+> **2026-08-07 later:** evals re-run and passed again after the WRITE-list restructure (13
+> items, one label per line — the missing-drift fix); [Maya] routing confirmed live in the
+> recalc walk-up.
 
 **P3.1 — Retain `s.decisions`** (+ readings) in `LAST_RUN` (today only `s.walk` survives, ~4769).
 **P3.2 — Maya precedence.** Maya branch in `finalCategoryOf()` (856–880): Maya > Sibyl > reviewer > rep; real source tag replaces hard-coded `'Sibyl'` (line 1021) → `[Maya]` labels. Zero-override runs byte-identical.

@@ -609,7 +609,6 @@ body { overflow-x: hidden; }
         <h4>Recalculate with my calls</h4>
         <p class="hint" id="mayaRecalcHint">Run the weekly forecast first — the recalc revises a draft, and there is no draft yet.</p>
         <p><button type="button" id="recalcMaya" class="btn" disabled>Recalculate with my calls</button></p>
-        <pre id="mayaWalkUp" style="display:none"></pre>
         <pre id="mayaRecalcOut"></pre>
         <p class="boundary-note">Nothing is sent without human approval.</p>
       </div>
