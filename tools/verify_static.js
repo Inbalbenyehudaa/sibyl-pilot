@@ -1745,9 +1745,9 @@ function check(name, cond, detail) {
   check('19e an unknown category is refused',
     !dealEdit('DL-0041', 'Slam Dunk', '').ok && !dealEdit('DL-0041', '', '').ok);
   const g19ed = dealEdit('DL-0041', 'Pipeline', 'Cody says the renewal conversation reopened');
-  check('19f Edit records the new category with the reason, and says it is not applied',
+  check('19f Edit records the new category with the reason, and points at the recalc loop',
     g19ed.ok && DEAL_GATE['DL-0041'].category === 'Pipeline' &&
-    /does NOT change this run/.test(g19ed.message) &&
+    /Recalculate with my calls/.test(g19ed.message) &&
     /^EDITED \d\d:\d\d:\d\d — Omit → Pipeline · Cody says/.test(actionOf(RUN_LOG[g19logBefore + 2])),
     actionOf(RUN_LOG[g19logBefore + 2]));
 

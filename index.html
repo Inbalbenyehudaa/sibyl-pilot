@@ -577,7 +577,7 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .dealstatus.approved { color: var(--ok); }
 .dealstatus.edited { color: var(--info); }
 .dealstatus.escalated { color: var(--danger); }
-.dealnotapplied { color: var(--danger);
+.dealnotapplied { color: var(--warn);
                   background: color-mix(in srgb, var(--danger) 10%, transparent);
                   border: var(--border-w) solid var(--danger); border-radius: var(--radius-md);
                   padding: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0;
@@ -12728,12 +12728,16 @@ async function runMayaRecalc() {
   const inheritNotes = [];
   if (md.droppedC03.length) inheritNotes.push('Left component 03 (your call moved them out of Best Case): ' + md.droppedC03.join(', '));
   if (md.movedIntoPool.length) inheritNotes.push('In the Best Case pool by your call but NOT counted in component 03 (naming c03 stays a judgment): ' + md.movedIntoPool.join(', '));
-  if (walkEl) {
-    walkEl.style.display = '';
-    walkEl.textContent = '=== MAYA\'S WALK-UP — recalculated by the calculator from YOUR calls ===\n\n' +
-      walkUpText(mayaWalk) + (inheritNotes.length ? '\n\n' + inheritNotes.join('\n') : '');
+  const mayaWalkBlock = '=== MAYA\'S WALK-UP — recalculated by the calculator from YOUR calls ===\n\n' +
+    walkUpText(mayaWalk) + (inheritNotes.length ? '\n\n' + inheritNotes.join('\n') : '');
+  /* Nothing renders until the redrafted notes are ready — an interim walk-up
+     next to the old draft is two numbers on one screen (user decision
+     2026-08-07). The walk-up appears WITH the notes, or with the failure. */
+  if (walkEl) { walkEl.style.display = 'none'; walkEl.textContent = ''; }
+  if (out) {
+    out.textContent = 'Redrafting the submission on your walk-up — the recalculated ' +
+      'forecast notes will appear here.';
   }
-  if (out) { out.textContent = ''; }
   const btn = document.getElementById('recalcMaya');
   if (btn) { btn.disabled = true; btn.textContent = 'Redrafting on your walk-up…'; }
   setTopStatus('Revising — Maya\'s calls', 'running');
@@ -12744,6 +12748,7 @@ async function runMayaRecalc() {
 
   if (!s.ok) {
     setTopStatus('Revision failed', 'danger');
+    if (walkEl) { walkEl.style.display = ''; walkEl.textContent = mayaWalkBlock; }
     if (out) {
       out.textContent = 'The redraft call failed — YOUR WALK-UP ABOVE STILL STANDS (it is the ' +
         'calculator\'s arithmetic, not the model\'s). Error: ' + s.error;
@@ -12784,15 +12789,18 @@ async function runMayaRecalc() {
       : '(no sibyl_reading field in the revision)';
   }
 
-  /* The spotlight — her reading path, in order, plus the superseded original. */
+  /* The spotlight arrives all at once: her walk-up + the refreshed notes.
+     The advisory is NOT duplicated here — it lives in its own advisory box
+     (#runReading), refreshed above (user decision 2026-08-07). */
+  if (walkEl) { walkEl.style.display = ''; walkEl.textContent = mayaWalkBlock; }
   if (out) {
     const notes = (fieldScan.values || {}).forecast_notes || '(forecast_notes did not arrive — see the draft above)';
     out.textContent =
       '[REFRESHED — drafted on YOUR walk-up]\n\n' +
       '— forecast_notes —\n' + notes + '\n\n' +
-      '— sibyl_reading (advisory) —\n' + (parts.reading || '(none)') + '\n\n' +
       'Fields changed: ' + (changed.join(', ') || 'none') + '\n' +
-      'Sibyl\'s original draft is preserved below and in the run log.\n\n' +
+      'The refreshed advisory is in the sibyl_reading box above; Sibyl\'s original draft is ' +
+      'preserved below and in the run log.\n\n' +
       '=== SIBYL\'S ORIGINAL DRAFT (superseded by your revision) ===\n\n' +
       (splitReading(prev.text).submission || prev.text || '');
   }
@@ -13437,7 +13445,8 @@ function dealEdit(id, category, reason) {
   }
   recordDealDecision(id, 'EDITED', cat, reason, []);
   return { ok: true, message: 'EDITED — ' + id + ' ' + c.resolved + ' → ' + cat +
-           '. Recorded as your call. It does NOT change this run\'s submission (see the notice above).' };
+           '. Recorded as your call — "Recalculate with my calls" (bottom of the weekly review) ' +
+           'applies it to the forecast.' };
 }
 
 function dealEscalate(id, category, reason, destinations) {
@@ -14832,8 +14841,8 @@ function renderDealGate() {
         if (g && g.category && LAST_APPLIED) {
           const appliedCat = (LAST_APPLIED[id] || {}).cat;
           if (appliedCat && appliedCat !== g.category) {
-            line('dealnotapplied', 'NOT IN THIS RUN — the submission above used ' + appliedCat +
-              '. Your ' + g.category + ' is recorded, not applied.');
+            line('dealnotapplied', 'PENDING RECALC — recorded. The submission above still uses ' +
+              appliedCat + '; "Recalculate with my calls" applies your ' + g.category + '.');
           }
         }
 
@@ -14891,10 +14900,10 @@ function renderDealGate() {
     } else {
       notice.className = 'fieldnote warn';
       notice.textContent = div.length + ' of your calls ' + (div.length === 1 ? 'is' : 'are') +
-        ' recorded but did NOT change this run\'s submission — the walk-up above still stands on ' +
-        'the reviewer\'s readings: ' +
+        ' recorded but not yet in the submission above: ' +
         div.map(x => x.id + ' ' + x.applied + '→' + x.maya).join(', ') +
-        '. Applying them is a re-run, not a click.';
+        '. Click "Recalculate with my calls" at the bottom of the weekly review to apply them — ' +
+        'the revision becomes the draft of record and this notice clears.';
     }
   }
 

@@ -307,7 +307,7 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .dealstatus.approved { color: var(--ok); }
 .dealstatus.edited { color: var(--info); }
 .dealstatus.escalated { color: var(--danger); }
-.dealnotapplied { color: var(--danger);
+.dealnotapplied { color: var(--warn);
                   background: color-mix(in srgb, var(--danger) 10%, transparent);
                   border: var(--border-w) solid var(--danger); border-radius: var(--radius-md);
                   padding: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0;
