@@ -2414,8 +2414,8 @@ function mayaRecalcMessage(md, walk) {
   P.push('REVISION FOCUS — deals where the final differs from your original: ' +
          (changedIds.join(', ') || 'none') + '.');
   P.push('Engage each of those by name in forecast_notes, deals_challenge_list and');
-  P.push('disagreement_register; carry unchanged deals forward substantively rather than');
-  P.push('re-drafting them from scratch.');
+  P.push('disagreement_register. Carry unchanged deals\' REASONING forward in the text —');
+  P.push('this licenses reusing arguments, never omitting fields.');
   P.push('');
   P.push('THE TOOL CALL — exactly once, exactly her routing:');
   P.push('- final_category per deal EXACTLY as listed above. A deviating call will be rejected.');
@@ -2423,8 +2423,11 @@ function mayaRecalcMessage(md, walk) {
   P.push('- rationale per deal: rule_id "M1"; evidence: the manager\'s logged action and reason,');
   P.push('  quoted (or "unchanged from the reviewer\'s reading"); argument: "Manager\'s final');
   P.push('  call — routing decided by the manager (M8.1)."');
-  P.push('- Then write ALL eleven output fields as a full submission drafted on the returned');
-  P.push('  walk-up, quoting the calculator\'s figures verbatim (M2.5a).');
+  P.push('- Then write EVERY labelled field from your WRITE instructions — all of them, no');
+  P.push('  field may be omitted. An omitted field reads as LOST, not as unchanged; a field the');
+  P.push('  revision does not alter is still written in full, quoting the calculator (drift and');
+  P.push('  delta_from_last_week change whenever the total changes — restate them from YOUR');
+  P.push('  walk-up, per M2.5a).');
   if (md.droppedC03.length) {
     P.push('');
     P.push('NOTE: ' + md.droppedC03.join(', ') + ' left component 03 because the manager moved the');

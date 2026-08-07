@@ -3098,6 +3098,7 @@ function check(name, cond, detail) {
     mrMsg.indexOf('MANAGER DECISIONS — logged this snapshot') !== -1 &&
     mrMsg.indexOf(mrA) !== -1 && /CHANGED/.test(mrMsg) &&
     mrMsg.indexOf('REVISION FOCUS') !== -1 &&
+    /no\n  field may be omitted/.test(mrMsg) && mrMsg.indexOf('eleven output fields') === -1 &&
     /MANAGER DECISIONS section for the current snapshot/.test(SIBYL_PROMPT) &&
     /RETRY_DELAYS_MS/.test(js));
   dealGateReset(); clearLastRun();
