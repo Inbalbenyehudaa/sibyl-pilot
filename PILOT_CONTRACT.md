@@ -82,7 +82,7 @@ The Pilot surface then shows its pre-run state.
     weekly: []                     // { week, note }
   },
 
-  gate: { open, status }           // the human gate, via gateStatus()
+  gate: { open, complete, status } // the human gate: gateComplete() + gateStatus()
 }
 ```
 

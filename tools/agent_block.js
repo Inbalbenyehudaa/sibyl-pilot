@@ -5343,7 +5343,7 @@ function buildPilotModel() {
       winRatePct: rec.resolved ? Math.round(100 * rec.mayaWins / rec.resolved) : null,
       openDisputes: rec.openDisputes, weekly: rec.weekly
     },
-    gate: { open: !!GATE, status: gateStatus() }
+    gate: { open: !!GATE, complete: gateComplete(), status: gateStatus() }
   };
 }
 
@@ -5373,20 +5373,147 @@ function pilotSigned(n) {
   return (n >= 0 ? '+' : '-') + moneyShort(Math.abs(n));
 }
 
+/* Maya's working copy of the forecast notes on the pilot surface. Local to
+   the page (nothing leaves without the gate); keyed to the run so a new
+   draft resets it, and her edits survive the re-renders in between. */
+let PILOT_NOTES = { key: null, text: '', edited: false };
+
+function pilotNotesFor(m) {
+  const key = String(m.meta.runN) + '·' + m.meta.kind;
+  if (PILOT_NOTES.key !== key) {
+    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false };
+  }
+  return PILOT_NOTES;
+}
+
+function pilotAutoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight || 0) + 'px';
+}
+
+function renderPilotPanel(panel, m) {
+  panel.textContent = '';
+  const card = pilotEl('div', 'pilot-card');
+
+  /* head — the walk-up numbers and the two actions */
+  const head = pilotEl('div', 'pilot-panel-head');
+  head.appendChild(pilotEl('p', 'pilot-eyebrow', 'Forecast walk-up'));
+  const nums = pilotEl('div', 'pilot-panel-nums');
+  [
+    { k: 'Commit', v: moneyShort(m.numbers.suggestedForecast), cls: '' },
+    { k: 'Best case', v: moneyShort(m.numbers.bestCaseTotal), cls: ' accent' }
+  ].forEach(s => {
+    const st = pilotEl('div', 'pilot-stat');
+    st.appendChild(pilotEl('p', 'k', s.k));
+    st.appendChild(pilotEl('p', 'n' + s.cls, s.v));
+    nums.appendChild(st);
+  });
+  head.appendChild(nums);
+
+  const comps = pilotEl('div', 'pilot-comps');
+  m.numbers.components.forEach(c => {
+    const row = pilotEl('div', 'pilot-comp');
+    row.appendChild(pilotEl('span', '', c.n + ' · ' + c.label));
+    row.appendChild(pilotEl('span', 'v', moneyShort(c.value)));
+    comps.appendChild(row);
+  });
+  head.appendChild(comps);
+
+  const pendingCount = m.deals.filter(d => d.pendingRecalc).length;
+  if (pendingCount) {
+    head.appendChild(pilotEl('p', 'pilot-pending',
+      pendingCount + ' of your call' + (pendingCount === 1 ? ' is' : 's are') +
+      ' pending re-calculation'));
+  }
+
+  const actions = pilotEl('div', 'pilot-panel-actions');
+  const recalc = pilotEl('button', 'btn', 'Re-calculate');
+  recalc.id = 'pilotRecalc';
+  recalc.type = 'button';
+  recalc.disabled = !pendingCount || !recalcReady();
+  recalc.addEventListener('click', function () {
+    recalc.disabled = true;
+    runMayaRecalc();
+  });
+  actions.appendChild(recalc);
+
+  const submit = pilotEl('button', 'btn primary', m.gate.complete ? 'Submitted' : 'Submit');
+  submit.id = 'pilotSubmit';
+  submit.type = 'button';
+  submit.disabled = m.gate.complete || !m.gate.open;
+  submit.addEventListener('click', function () {
+    const res = gateApprove();
+    if (!res.ok) {
+      const msg = document.getElementById('pilotPanelMsg');
+      if (msg) { msg.className = 'pilot-panel-msg warn'; msg.textContent = res.error; }
+      return;
+    }
+    renderGate();
+    renderRunLog();
+    renderDealGate();
+  });
+  actions.appendChild(submit);
+  head.appendChild(actions);
+
+  const msg = pilotEl('p', 'pilot-panel-msg' + (m.gate.complete ? ' ok' : ''),
+    m.gate.complete ? m.gate.status.code : '');
+  msg.id = 'pilotPanelMsg';
+  head.appendChild(msg);
+  card.appendChild(head);
+
+  /* body — the notes and the advisory */
+  const body = pilotEl('div', 'pilot-panel-body');
+  body.appendChild(pilotEl('p', 'hint',
+    'Notes are editable — nothing leaves this page until you submit.'));
+  body.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
+  const notesState = pilotNotesFor(m);
+  const notes = document.createElement('textarea');
+  notes.className = 'pilot-notes';
+  notes.id = 'pilotNotesBox';
+  notes.rows = 6;
+  notes.value = notesState.text;
+  notes.setAttribute('aria-label', 'Forecast notes');
+  notes.addEventListener('input', function () {
+    PILOT_NOTES.text = notes.value;
+    PILOT_NOTES.edited = true;
+    pilotAutoGrow(notes);
+  });
+  body.appendChild(notes);
+
+  const adv = pilotEl('div', 'pilot-advisory');
+  adv.appendChild(pilotEl('p', 'pilot-note-label',
+    'Sibyl\'s reading · never reaches the VP'));
+  adv.appendChild(pilotEl('p', 'body',
+    m.prose.reading || '(no reading in this run)'));
+  body.appendChild(adv);
+
+  body.appendChild(pilotEl('p', 'boundary-note',
+    'Nothing is sent without human approval.'));
+  card.appendChild(body);
+  panel.appendChild(card);
+  pilotAutoGrow(notes);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
+  const main = document.getElementById('pilotMain');
+  const panel = document.getElementById('pilotPanel');
   if (!empty || !hero) return;
   const m = buildPilotModel();
   if (!m) {
     empty.style.display = '';
     hero.style.display = 'none';
     hero.textContent = '';
+    if (main) { main.style.display = 'none'; }
+    if (panel) panel.textContent = '';
     return;
   }
   empty.style.display = 'none';
   hero.style.display = '';
   hero.textContent = '';
+  if (main) main.style.display = '';
+  if (panel) renderPilotPanel(panel, m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +

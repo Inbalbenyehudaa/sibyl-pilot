@@ -816,6 +816,50 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-bar-caption { margin: var(--sp-1) 0 0; font-size: var(--fs-0); color: var(--ink-3);
                      font-variant-numeric: tabular-nums; }
 
+/* The working grid: sticky walk-up panel left, review sections right. */
+#pilotMain { display: grid; grid-template-columns: 340px minmax(0, 1fr);
+             gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
+@media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
+#pilotPanel { position: sticky; top: var(--sp-5); }
+.pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+              border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
+.pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
+.pilot-panel-body { padding: var(--sp-5); }
+.pilot-panel-nums { display: flex; gap: var(--sp-6); margin-top: var(--sp-3); }
+.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-display);
+                       letter-spacing: var(--track-display-md);
+                       font-variant-numeric: tabular-nums; color: var(--ink);
+                       margin: var(--sp-1) 0 0; }
+.pilot-panel-nums .n.accent { color: var(--accent); }
+.pilot-comp { display: flex; justify-content: space-between; gap: var(--sp-3);
+              font-size: var(--fs-0); color: var(--ink-2); padding: 3px 0;
+              font-variant-numeric: tabular-nums; letter-spacing: var(--track-caption); }
+.pilot-comp .v { color: var(--ink); }
+.pilot-comps { margin-top: var(--sp-4); border-top: var(--border-w) solid var(--line);
+               padding-top: var(--sp-3); }
+.pilot-pending { margin: var(--sp-3) 0 0; font-size: var(--fs-0); color: var(--ruby); }
+.pilot-panel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2);
+                       margin-top: var(--sp-4); }
+.pilot-panel-msg { margin: var(--sp-3) 0 0; font-size: var(--fs-0); }
+.pilot-panel-msg.ok { color: var(--ok); }
+.pilot-panel-msg.warn { color: var(--danger); }
+.pilot-note-label { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                    letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                    color: var(--ink-3); margin: var(--sp-4) 0 var(--sp-1); }
+.pilot-notes { width: 100%; border: var(--border-w) solid transparent;
+               border-radius: var(--radius-sm); background: transparent;
+               font-family: var(--font-body); font-size: var(--fs-0);
+               color: var(--ink-2); line-height: var(--lh); padding: var(--sp-2);
+               resize: none; overflow: hidden; }
+.pilot-notes:hover { background: var(--bg-inset); }
+.pilot-notes:focus { outline: none; background: var(--bg-inset);
+                     border-color: var(--accent); }
+.pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
+                  margin-top: var(--sp-4); }
+.pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
+.pilot-advisory .body { font-size: var(--fs-0); color: var(--ink-2);
+                        white-space: pre-wrap; margin: 0; }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -1035,6 +1079,12 @@ body { overflow-x: hidden; }
     </div>
     <!-- The populated surface — built by renderPilot() from buildPilotModel(). -->
     <div id="pilotHero" style="display:none"></div>
+    <!-- P4 Inc 2 — the working grid: the sticky walk-up panel on the left,
+         the review sections on the right (filled by later increments). -->
+    <div id="pilotMain" style="display:none">
+      <aside id="pilotPanel"></aside>
+      <div id="pilotSections"></div>
+    </div>
   </div>
 </div>
 
@@ -15710,7 +15760,7 @@ function buildPilotModel() {
       winRatePct: rec.resolved ? Math.round(100 * rec.mayaWins / rec.resolved) : null,
       openDisputes: rec.openDisputes, weekly: rec.weekly
     },
-    gate: { open: !!GATE, status: gateStatus() }
+    gate: { open: !!GATE, complete: gateComplete(), status: gateStatus() }
   };
 }
 
@@ -15740,20 +15790,147 @@ function pilotSigned(n) {
   return (n >= 0 ? '+' : '-') + moneyShort(Math.abs(n));
 }
 
+/* Maya's working copy of the forecast notes on the pilot surface. Local to
+   the page (nothing leaves without the gate); keyed to the run so a new
+   draft resets it, and her edits survive the re-renders in between. */
+let PILOT_NOTES = { key: null, text: '', edited: false };
+
+function pilotNotesFor(m) {
+  const key = String(m.meta.runN) + '·' + m.meta.kind;
+  if (PILOT_NOTES.key !== key) {
+    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false };
+  }
+  return PILOT_NOTES;
+}
+
+function pilotAutoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight || 0) + 'px';
+}
+
+function renderPilotPanel(panel, m) {
+  panel.textContent = '';
+  const card = pilotEl('div', 'pilot-card');
+
+  /* head — the walk-up numbers and the two actions */
+  const head = pilotEl('div', 'pilot-panel-head');
+  head.appendChild(pilotEl('p', 'pilot-eyebrow', 'Forecast walk-up'));
+  const nums = pilotEl('div', 'pilot-panel-nums');
+  [
+    { k: 'Commit', v: moneyShort(m.numbers.suggestedForecast), cls: '' },
+    { k: 'Best case', v: moneyShort(m.numbers.bestCaseTotal), cls: ' accent' }
+  ].forEach(s => {
+    const st = pilotEl('div', 'pilot-stat');
+    st.appendChild(pilotEl('p', 'k', s.k));
+    st.appendChild(pilotEl('p', 'n' + s.cls, s.v));
+    nums.appendChild(st);
+  });
+  head.appendChild(nums);
+
+  const comps = pilotEl('div', 'pilot-comps');
+  m.numbers.components.forEach(c => {
+    const row = pilotEl('div', 'pilot-comp');
+    row.appendChild(pilotEl('span', '', c.n + ' · ' + c.label));
+    row.appendChild(pilotEl('span', 'v', moneyShort(c.value)));
+    comps.appendChild(row);
+  });
+  head.appendChild(comps);
+
+  const pendingCount = m.deals.filter(d => d.pendingRecalc).length;
+  if (pendingCount) {
+    head.appendChild(pilotEl('p', 'pilot-pending',
+      pendingCount + ' of your call' + (pendingCount === 1 ? ' is' : 's are') +
+      ' pending re-calculation'));
+  }
+
+  const actions = pilotEl('div', 'pilot-panel-actions');
+  const recalc = pilotEl('button', 'btn', 'Re-calculate');
+  recalc.id = 'pilotRecalc';
+  recalc.type = 'button';
+  recalc.disabled = !pendingCount || !recalcReady();
+  recalc.addEventListener('click', function () {
+    recalc.disabled = true;
+    runMayaRecalc();
+  });
+  actions.appendChild(recalc);
+
+  const submit = pilotEl('button', 'btn primary', m.gate.complete ? 'Submitted' : 'Submit');
+  submit.id = 'pilotSubmit';
+  submit.type = 'button';
+  submit.disabled = m.gate.complete || !m.gate.open;
+  submit.addEventListener('click', function () {
+    const res = gateApprove();
+    if (!res.ok) {
+      const msg = document.getElementById('pilotPanelMsg');
+      if (msg) { msg.className = 'pilot-panel-msg warn'; msg.textContent = res.error; }
+      return;
+    }
+    renderGate();
+    renderRunLog();
+    renderDealGate();
+  });
+  actions.appendChild(submit);
+  head.appendChild(actions);
+
+  const msg = pilotEl('p', 'pilot-panel-msg' + (m.gate.complete ? ' ok' : ''),
+    m.gate.complete ? m.gate.status.code : '');
+  msg.id = 'pilotPanelMsg';
+  head.appendChild(msg);
+  card.appendChild(head);
+
+  /* body — the notes and the advisory */
+  const body = pilotEl('div', 'pilot-panel-body');
+  body.appendChild(pilotEl('p', 'hint',
+    'Notes are editable — nothing leaves this page until you submit.'));
+  body.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
+  const notesState = pilotNotesFor(m);
+  const notes = document.createElement('textarea');
+  notes.className = 'pilot-notes';
+  notes.id = 'pilotNotesBox';
+  notes.rows = 6;
+  notes.value = notesState.text;
+  notes.setAttribute('aria-label', 'Forecast notes');
+  notes.addEventListener('input', function () {
+    PILOT_NOTES.text = notes.value;
+    PILOT_NOTES.edited = true;
+    pilotAutoGrow(notes);
+  });
+  body.appendChild(notes);
+
+  const adv = pilotEl('div', 'pilot-advisory');
+  adv.appendChild(pilotEl('p', 'pilot-note-label',
+    'Sibyl\'s reading · never reaches the VP'));
+  adv.appendChild(pilotEl('p', 'body',
+    m.prose.reading || '(no reading in this run)'));
+  body.appendChild(adv);
+
+  body.appendChild(pilotEl('p', 'boundary-note',
+    'Nothing is sent without human approval.'));
+  card.appendChild(body);
+  panel.appendChild(card);
+  pilotAutoGrow(notes);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
+  const main = document.getElementById('pilotMain');
+  const panel = document.getElementById('pilotPanel');
   if (!empty || !hero) return;
   const m = buildPilotModel();
   if (!m) {
     empty.style.display = '';
     hero.style.display = 'none';
     hero.textContent = '';
+    if (main) { main.style.display = 'none'; }
+    if (panel) panel.textContent = '';
     return;
   }
   empty.style.display = 'none';
   hero.style.display = '';
   hero.textContent = '';
+  if (main) main.style.display = '';
+  if (panel) renderPilotPanel(panel, m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +

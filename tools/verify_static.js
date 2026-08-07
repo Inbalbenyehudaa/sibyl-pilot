@@ -2005,7 +2005,7 @@ function check(name, cond, detail) {
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState',
     'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
-    'worldcheckRoot', 'pilotEmpty', 'pilotHero'];
+    'worldcheckRoot', 'pilotEmpty', 'pilotHero', 'pilotMain', 'pilotPanel', 'pilotSections'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -3187,9 +3187,11 @@ function check(name, cond, detail) {
   const p35walk = computeWalkUp(p35decisions, p35readings);
   setLastRun({ n: 99, at: '12:00:00', kind: 'weekly', faulted: false, error: '',
     band: { code: 'OK', tone: 'ok' },
-    scan: { parsed: true, found: [], missing: [], values: { forecast_notes: 'notes35' } },
+    scan: { parsed: true, found: [], missing: [],
+            values: { forecast_notes: 'notes35', sibyl_reading: 'read35' } },
     refusal: { refused: false }, readings: p35readings, walk: p35walk,
     text: '', decisions: p35decisions });
+  closeGate();   /* earlier sections may have left a gate open — the fixture is gate-less */
   const m35 = buildPilotModel();
   check('35b every model number is the calculator\'s, not its own arithmetic',
     m35 !== null &&
@@ -3228,10 +3230,39 @@ function check(name, cond, detail) {
     els.pilotHeadline.textContent.indexOf('$662.9K') !== -1 &&
     els.pilotHeadline.textContent.indexOf(moneyShort(p35walk.total)) !== -1,
     els.pilotHeadline ? els.pilotHeadline.textContent : '(no headline)');
+  /* 35i-35k — P4 Inc 2: the walk-up panel. */
+  check('35i the sticky panel carries the walk-up: numbers, components, notes prefilled',
+    els.pilotMain.style.display === '' &&
+    els.pilotPanel.children.length > 0 &&
+    els.pilotNotesBox.value === 'notes35' &&
+    els.pilotRecalc.disabled === true &&
+    els.pilotSubmit.disabled === true,
+    'panel rendered · notes "' + els.pilotNotesBox.value + '" · recalc+submit disabled (no gate, no pending)');
+  const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
+  openGate(p35entry, 'harness draft', 'draft');
+  renderPilot();
+  check('35j with the gate open Submit arms; approving flips it to Submitted',
+    (() => {
+      if (els.pilotSubmit.disabled !== false) return false;
+      const res = gateApprove();
+      if (!res.ok) return false;
+      renderPilot();
+      return els.pilotSubmit.disabled === true &&
+             els.pilotSubmit.textContent === 'Submitted' &&
+             /APPROVED/.test(els.pilotPanelMsg.textContent);
+    })(),
+    els.pilotSubmit.textContent + ' · ' + els.pilotPanelMsg.textContent);
+  check('35k the advisory box carries the reading, and the boundary note is in the panel',
+    (() => {
+      const m2 = buildPilotModel();
+      return m2.prose.reading === 'read35' && m2.gate.complete === true;
+    })(), 'reading + gate.complete through the contract');
+  closeGate();
   clearLastRun();
   renderPilot();
   check('35h clearing the run returns the pilot to its empty state',
-    els.pilotEmpty.style.display === '' && els.pilotHero.style.display === 'none');
+    els.pilotEmpty.style.display === '' && els.pilotHero.style.display === 'none' &&
+    els.pilotMain.style.display === 'none');
   selectTab('console');
 
   console.log(results.join('\n'));

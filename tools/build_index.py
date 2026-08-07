@@ -527,6 +527,50 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-bar-caption { margin: var(--sp-1) 0 0; font-size: var(--fs-0); color: var(--ink-3);
                      font-variant-numeric: tabular-nums; }
 
+/* The working grid: sticky walk-up panel left, review sections right. */
+#pilotMain { display: grid; grid-template-columns: 340px minmax(0, 1fr);
+             gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
+@media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
+#pilotPanel { position: sticky; top: var(--sp-5); }
+.pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+              border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
+.pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
+.pilot-panel-body { padding: var(--sp-5); }
+.pilot-panel-nums { display: flex; gap: var(--sp-6); margin-top: var(--sp-3); }
+.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-display);
+                       letter-spacing: var(--track-display-md);
+                       font-variant-numeric: tabular-nums; color: var(--ink);
+                       margin: var(--sp-1) 0 0; }
+.pilot-panel-nums .n.accent { color: var(--accent); }
+.pilot-comp { display: flex; justify-content: space-between; gap: var(--sp-3);
+              font-size: var(--fs-0); color: var(--ink-2); padding: 3px 0;
+              font-variant-numeric: tabular-nums; letter-spacing: var(--track-caption); }
+.pilot-comp .v { color: var(--ink); }
+.pilot-comps { margin-top: var(--sp-4); border-top: var(--border-w) solid var(--line);
+               padding-top: var(--sp-3); }
+.pilot-pending { margin: var(--sp-3) 0 0; font-size: var(--fs-0); color: var(--ruby); }
+.pilot-panel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2);
+                       margin-top: var(--sp-4); }
+.pilot-panel-msg { margin: var(--sp-3) 0 0; font-size: var(--fs-0); }
+.pilot-panel-msg.ok { color: var(--ok); }
+.pilot-panel-msg.warn { color: var(--danger); }
+.pilot-note-label { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                    letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                    color: var(--ink-3); margin: var(--sp-4) 0 var(--sp-1); }
+.pilot-notes { width: 100%; border: var(--border-w) solid transparent;
+               border-radius: var(--radius-sm); background: transparent;
+               font-family: var(--font-body); font-size: var(--fs-0);
+               color: var(--ink-2); line-height: var(--lh); padding: var(--sp-2);
+               resize: none; overflow: hidden; }
+.pilot-notes:hover { background: var(--bg-inset); }
+.pilot-notes:focus { outline: none; background: var(--bg-inset);
+                     border-color: var(--accent); }
+.pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
+                  margin-top: var(--sp-4); }
+.pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
+.pilot-advisory .body { font-size: var(--fs-0); color: var(--ink-2);
+                        white-space: pre-wrap; margin: 0; }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -746,6 +790,12 @@ body { overflow-x: hidden; }
     </div>
     <!-- The populated surface — built by renderPilot() from buildPilotModel(). -->
     <div id="pilotHero" style="display:none"></div>
+    <!-- P4 Inc 2 — the working grid: the sticky walk-up panel on the left,
+         the review sections on the right (filled by later increments). -->
+    <div id="pilotMain" style="display:none">
+      <aside id="pilotPanel"></aside>
+      <div id="pilotSections"></div>
+    </div>
   </div>
 </div>
 
