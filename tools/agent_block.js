@@ -1436,7 +1436,7 @@ function buildSibylMessage(readings) {
          'deals — and state them by calling the compute_walk_up tool. Do not write any output ' +
          'field before the tool has returned.');
   P.push('2. The calculator returns the walk-up. Then produce all eleven labeled output fields. ' +
-         'Every figure in fields 1-10 comes from the calculator\'s return, verbatim (M2.5a). ' +
+         'Every figure in fields 1-12 comes from the calculator\'s return, verbatim (M2.5a). ' +
          'Field 11, sibyl_reading, is yours: advisory, manager-only, exempt from the ' +
          'no-arithmetic rule per M2.5b — label any figure you compute yourself and show the ' +
          'working (M10.6).');
@@ -1550,7 +1550,7 @@ function buildSibylMessage(readings) {
          'named and the left-out alike — plus summary}: why those deals and not the others.');
   P.push('');
   P.push('The calculator builds the walk-up from this call and returns every figure, including ' +
-         'the M6.1 ex-swing-deal statement. In fields 1-10 use the returned figures verbatim — ' +
+         'the M6.1 ex-swing-deal statement. In fields 1-12 use the returned figures verbatim — ' +
          'a number you compute yourself there is a failed check (M2.5a). In field 11 you may ' +
          'compute your own figures, labelled per M10.6, and in forecast_notes answer SKILL 03\'s ' +
          'three questions: what is in, what could be incremental, and what moves it.');
@@ -5117,7 +5117,7 @@ async function runWeeklyForecast(btn) {
       header.push('');
     }
   }
-  header.push('=== SIBYL\'S DRAFT — the submission (fields 1-10) ===');
+  header.push('=== SIBYL\'S DRAFT — the submission (fields 1-12) ===');
   header.push('');
 
   const parts = splitReading(s.text);

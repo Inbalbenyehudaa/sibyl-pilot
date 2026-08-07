@@ -9925,7 +9925,7 @@ Components 01 and 05 are fixed. **02 and 04 follow from the deal readings you we
 - **Named deals only**, never a benchmark percentage or weighted pipe (SKILL 03). If you cannot name the deals, you do not have the number.
 - You are **not expected to include 100% of best case** — only the portion you have conviction on. **Naming none is legitimate, but only as a reasoned call**: if you name no deals, \`best_case_rationale\` must name every deal in the pool and say what is missing on each. A zero nobody argued for is a blank, not a judgment.
 
-Argue every call from the deal readings, the decision_stats (rep accuracy, the override record, week-over-week moves) and the tables. In your reasoning and inside rationales you MAY do your own arithmetic, provided each figure is labelled as your own and both operands are cited. That licence never extends to output fields 1–10, where every figure is a quote.
+Argue every call from the deal readings, the decision_stats (rep accuracy, the override record, week-over-week moves) and the tables. In your reasoning and inside rationales you MAY do your own arithmetic, provided each figure is labelled as your own and both operands are cited. That licence never extends to output fields 1–12, where every figure is a quote.
 
 **A rationale needs no walk-up figures — they do not exist yet.** It argues from deal evidence and stats. The "how the number changes" analysis belongs in \`forecast_notes\`, written after the figures return. Decide first; the call transcribes a decision already made. A placeholder or stub in any rationale is a failed run however good the figures are.
 
@@ -9937,19 +9937,21 @@ Rationales travel inside the call and are read by Maya — each per-deal rationa
 
 ### 3 · Write
 
-Your next message is the eleven labelled output fields, exactly these, in this order — no additions, drops, or reordering:
+Your next message is the labelled output fields below — every label, its own block, exactly in this order, no additions, drops, or reordering. An unwritten label reads as LOST, never as unchanged:
 
 1. failed_checks_banner — empty on a clean run; else the named failures. An INSUFFICIENT_EVIDENCE reading is one: banner it as unjudgeable, and chase it [M5.3].
-2. suggested_forecast, suggested_best_case — the calculator's gross forecast; the sum of the reviewer's best-case readings.
-3. delta_from_last_week — quote the calculator's figure (draft vs Maya's last submitted forecast).
-4. team_bottoms_up_total, drift — quote the calculator's figures (draft vs the team's own roll-up).
-5. reconciliation_scorecard — last week's draft vs submitted vs actuals; resolved disagreements scored (quote decision_stats); one line on how calibration shifted.
-6. per_rep_forecast — rep, sum of suggested commit deals, delta vs the rep's own call, flag count.
-7. deals_challenge_list — deal, rep, stage, amount, close date, rep's category, your category, evidence (cited), recommended action.
-8. chase_list — deals or reps with stale or missing data needing a nudge.
-9. disagreement_register — open draft-vs-Maya disputes, with the override win rate (quote decision_stats), overall and per direction.
-10. forecast_notes — the structure SKILL.md requires, answering SKILL 03's three questions: **what is in** (each named deal and its amount), **what could be incremental** (which best-case deals you excluded, and why), **what moves it** (how the number changes if a named deal slips, grows, or shrinks). Calculator figures only (M2.5a, M7.6).
-11. sibyl_reading — your reading of the record (M10). Advisory and Maya's eyes only: never submitted, never merged into the notes, never changes the walk-up (M10.4). Endorse or dissent plainly (M10.5) — hedging between them is not legitimate. Here you may compute your own figures (M2.5b), each labelled as your own calculation with the working shown next to the calculator's figure (M10.6). Argue from the record — decision_stats, the readings, the reps' notes — and name the evidence that would change your mind.
+2. suggested_forecast — the calculator's gross forecast.
+3. suggested_best_case — the sum of the reviewer's best-case readings.
+4. delta_from_last_week — quote the calculator's figure (draft vs Maya's last submitted forecast).
+5. team_bottoms_up_total — the team's own bottoms-up roll-up, quoted.
+6. drift — the calculator's figure: draft total vs the team's roll-up; it changes whenever the total changes.
+7. reconciliation_scorecard — last week's draft vs submitted vs actuals; resolved disagreements scored (quote decision_stats); one line on how calibration shifted.
+8. per_rep_forecast — rep, sum of suggested commit deals, delta vs the rep's own call, flag count.
+9. deals_challenge_list — deal, rep, stage, amount, close date, rep's category, your category, evidence (cited), recommended action.
+10. chase_list — deals or reps with stale or missing data needing a nudge.
+11. disagreement_register — open draft-vs-Maya disputes, with the override win rate (quote decision_stats), overall and per direction.
+12. forecast_notes — the structure SKILL.md requires, answering SKILL 03's three questions: **what is in** (each named deal and its amount), **what could be incremental** (which best-case deals you excluded, and why), **what moves it** (how the number changes if a named deal slips, grows, or shrinks). Calculator figures only (M2.5a, M7.6).
+13. sibyl_reading — your reading of the record (M10). Advisory and Maya's eyes only: never submitted, never merged into the notes, never changes the walk-up (M10.4). Endorse or dissent plainly (M10.5) — hedging between them is not legitimate. Here you may compute your own figures (M2.5b), each labelled as your own calculation with the working shown next to the calculator's figure (M10.6). Argue from the record — decision_stats, the readings, the reps' notes — and name the evidence that would change your mind.
 
 **Citations.** Cite inline, in square brackets, at the end of the clause the source supports, using the ID exactly as it appears: [M5.3], [SKILL 03], [DL-0037], [topdown_metrics.csv], [decision_stats]. deals_challenge_list, chase_list, disagreement_register, forecast_notes and sibyl_reading each carry at least one tag; a challenge carries both the rule and the deal — [M1.1] [DL-0037]. A calculator figure needs no tag; it is already audited. **Every tag is resolved against the actual files, and any that names nothing is shown to Maya as NOT FOUND** — worse than no citation, because it reads as grounded and audits as invented. Cite the ID you are certain of, or name the source in words.
 
@@ -11697,7 +11699,7 @@ function buildSibylMessage(readings) {
          'deals — and state them by calling the compute_walk_up tool. Do not write any output ' +
          'field before the tool has returned.');
   P.push('2. The calculator returns the walk-up. Then produce all eleven labeled output fields. ' +
-         'Every figure in fields 1-10 comes from the calculator\'s return, verbatim (M2.5a). ' +
+         'Every figure in fields 1-12 comes from the calculator\'s return, verbatim (M2.5a). ' +
          'Field 11, sibyl_reading, is yours: advisory, manager-only, exempt from the ' +
          'no-arithmetic rule per M2.5b — label any figure you compute yourself and show the ' +
          'working (M10.6).');
@@ -11811,7 +11813,7 @@ function buildSibylMessage(readings) {
          'named and the left-out alike — plus summary}: why those deals and not the others.');
   P.push('');
   P.push('The calculator builds the walk-up from this call and returns every figure, including ' +
-         'the M6.1 ex-swing-deal statement. In fields 1-10 use the returned figures verbatim — ' +
+         'the M6.1 ex-swing-deal statement. In fields 1-12 use the returned figures verbatim — ' +
          'a number you compute yourself there is a failed check (M2.5a). In field 11 you may ' +
          'compute your own figures, labelled per M10.6, and in forecast_notes answer SKILL 03\'s ' +
          'three questions: what is in, what could be incremental, and what moves it.');
@@ -15378,7 +15380,7 @@ async function runWeeklyForecast(btn) {
       header.push('');
     }
   }
-  header.push('=== SIBYL\'S DRAFT — the submission (fields 1-10) ===');
+  header.push('=== SIBYL\'S DRAFT — the submission (fields 1-12) ===');
   header.push('');
 
   const parts = splitReading(s.text);

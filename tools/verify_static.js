@@ -289,7 +289,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'SIBYL_PROMPT, POLICY_FILES, reviewerSystemPrompt, ' +
   'DATA_FILES, READING_FIELDS, openGate, logRun, ' +
   'citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS, ' +
-  'buildDataStore, EMBEDDED_SOURCES, resolveDataMode, ' +
+  'buildDataStore, EMBEDDED_SOURCES, resolveDataMode, SIBYL_FIELDS, ' +
   'mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, ' +
   'setLastRun: (v) => { LAST_RUN = v; }, ' +
   'setWorkState, renderWorkState, PRODUCT_LINE, getWorkState: () => WORK_STATE, ' +
@@ -329,7 +329,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         dealGateReset, DEAL_CATEGORIES, getApplied,
         DATA_FILES, READING_FIELDS, openGate, logRun,
         citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
-        buildDataStore, EMBEDDED_SOURCES, resolveDataMode,
+        buildDataStore, EMBEDDED_SOURCES, resolveDataMode, SIBYL_FIELDS,
         mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, setLastRun,
         REVIEWER_PROMPT,
         runWeeklyForecast, RUN_LOG, runLogRows, pendingCount, currentCaseLabel,
@@ -693,20 +693,20 @@ function check(name, cond, detail) {
   /* 7x1 — fix A. The three-questions structure binds forecast_notes, written
      AFTER the figures exist. Binding it to best_case_rationale is what made
      a placeholder the rational first move. */
-  const notesFieldLine = (SIBYL_PROMPT.match(/10\. forecast_notes[^\n]*/) || [''])[0];
+  const notesFieldLine = (SIBYL_PROMPT.match(/12\. forecast_notes[^\n]*/) || [''])[0];
   check('7x1 SKILL 03\'s three questions bind forecast_notes, not the in-call rationale',
     /what is in/.test(notesFieldLine) && /what could be incremental/.test(notesFieldLine) &&
     /what moves it/.test(notesFieldLine) &&
     /A rationale needs no walk-up figures — they do not exist yet/.test(SIBYL_PROMPT) &&
     !/`best_case_rationale` and `forecast_notes` must answer/.test(SIBYL_PROMPT),
-    'the in-call rationale is evidence-only; the figure analysis moved to field 10');
+    'the in-call rationale is evidence-only; the figure analysis moved to field 12');
 
   /* 7x2 — the own-math licence is scoped (3b): labelled + operand-cited, never
      in fields 1-10. */
-  check('7x2 the own-math licence exists and is scoped away from fields 1-10',
+  check('7x2 the own-math licence exists and is scoped away from fields 1-12',
     /you MAY do your own arithmetic, provided each figure is labelled as your own and both operands are cited/
       .test(SIBYL_PROMPT) &&
-    /That licence never extends to output fields 1–10, where every figure is a quote/
+    /That licence never extends to output fields 1–12, where every figure is a quote/
       .test(SIBYL_PROMPT),
     'labelled, cited, and quote-only output fields');
 
@@ -773,6 +773,14 @@ function check(name, cond, detail) {
   check('7x9 the prompt stays under 14,000 chars — accretion still fails the build',
     SIBYL_PROMPT.length < 14000,
     SIBYL_PROMPT.length + ' chars');
+  /* 7x10 (2026-08-07) — the missing-drift incidents: labels bundled into one
+     numbered item get their trailing label dropped by the model. Every output
+     label must be its own numbered line, and no count word may re-anchor the
+     model on a number smaller than the label list. */
+  check('7x10 every output label is its own numbered line in the prompt — bundling drops trailing labels',
+    SIBYL_FIELDS.every(f => new RegExp('^\\d+\\. ' + f + ' —', 'm').test(SIBYL_PROMPT)) &&
+    !/eleven labelled output fields/.test(SIBYL_PROMPT),
+    SIBYL_FIELDS.length + ' labels, each enumerated');
 
   /* 7y — the 2026-08-06 live-run regressions, pinned. */
   check('7y1 Decide is scoped to the best-case pool — reviewer Commits are not re-litigated',
@@ -831,7 +839,7 @@ function check(name, cond, detail) {
   check('7j and the prompt states the turn as its own timeline section',
     /## THE TURN — decide, call once, write/.test(SIBYL_PROMPT) &&
     /When the walk-up returns, review the routing before writing/.test(SIBYL_PROMPT) &&
-    /Your next message is the eleven labelled output fields/.test(SIBYL_PROMPT) &&
+    /Your next message is the labelled output fields below/.test(SIBYL_PROMPT) &&
     /re-sending identical arguments is a stall and ends the run with no draft/.test(SIBYL_PROMPT),
     'three steps plus the prohibition');
   /* 7j2b — and the prohibition is SCOPED. Unconditional ("do not call it a
@@ -1699,7 +1707,7 @@ function check(name, cond, detail) {
     /^\*\*11\. sibyl_reading\*\*/.test(sp.reading) &&
     /Endorse the walk-up as constructed/.test(sp.reading),
     JSON.stringify(sp.reading.slice(0, 40)));
-  check('18i the submission keeps fields 1-10 and NOT the reading (M10.4)',
+  check('18i the submission keeps fields 1-12 and NOT the reading (M10.4)',
     /failed_checks_banner/.test(sp.submission) && /forecast_notes/.test(sp.submission) &&
     sp.submission.indexOf('sibyl_reading') === -1 &&
     sp.submission.indexOf('Endorse the walk-up') === -1);
