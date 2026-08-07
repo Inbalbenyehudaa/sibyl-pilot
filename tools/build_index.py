@@ -527,17 +527,22 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-bar-caption { margin: var(--sp-1) 0 0; font-size: var(--fs-0); color: var(--ink-3);
                      font-variant-numeric: tabular-nums; }
 
-/* The working grid: sticky walk-up panel left, review sections right. */
-#pilotMain { display: grid; grid-template-columns: 340px minmax(0, 1fr);
+/* The working grid: sticky walk-up panel left, review sections right. The
+   grid breaks OUT of the hero's measure on wide screens — the panel earns
+   more room than the reading column above it. */
+#pilotMain { display: grid; grid-template-columns: 430px minmax(0, 1fr);
              gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
+@media (min-width: 1320px) { #pilotMain { margin-left: -88px; margin-right: -88px; } }
 @media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
 #pilotPanel { position: sticky; top: var(--sp-5); }
 .pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
               border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
 .pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
-.pilot-panel-body { padding: var(--sp-5); }
+/* The notes region scrolls INSIDE the sticky panel — numbers and buttons
+   stay on screen however long the notes run. */
+.pilot-panel-body { padding: var(--sp-5); max-height: 52vh; overflow-y: auto; }
 .pilot-panel-nums { display: flex; gap: var(--sp-6); margin-top: var(--sp-3); }
-.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-display);
+.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-strong);
                        letter-spacing: var(--track-display-md);
                        font-variant-numeric: tabular-nums; color: var(--ink);
                        margin: var(--sp-1) 0 0; }
@@ -557,19 +562,30 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-note-label { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
                     letter-spacing: var(--track-micro-cap); text-transform: uppercase;
                     color: var(--ink-3); margin: var(--sp-4) 0 var(--sp-1); }
+.pilot-note-labelrow { display: flex; justify-content: space-between;
+                       align-items: baseline; margin-top: var(--sp-4); }
+.pilot-note-labelrow .pilot-note-label { margin: 0; }
+.pilot-edit-link { border: 0; background: transparent; color: var(--accent);
+                   font-family: var(--font-body); font-size: var(--fs-0);
+                   font-weight: var(--w-strong); cursor: pointer; padding: 0; }
+.pilot-edit-link:hover { color: var(--accent-deep, var(--accent)); }
 .pilot-notes { width: 100%; border: var(--border-w) solid transparent;
                border-radius: var(--radius-sm); background: transparent;
-               font-family: var(--font-body); font-size: var(--fs-0);
-               color: var(--ink-2); line-height: var(--lh); padding: var(--sp-2);
+               font-family: var(--font-body); font-size: var(--fs-1);
+               color: var(--ink-2); line-height: 1.55; padding: var(--sp-2);
                resize: none; overflow: hidden; }
 .pilot-notes:hover { background: var(--bg-inset); }
 .pilot-notes:focus { outline: none; background: var(--bg-inset);
                      border-color: var(--accent); }
+.pilot-notes-view { cursor: text; margin-top: var(--sp-1); }
+.pilot-note-h { font-size: var(--fs-1); font-weight: var(--w-strong);
+                color: var(--ink); margin: var(--sp-3) 0 var(--sp-1); }
+.pilot-note-p { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.55;
+                margin: 0 0 var(--sp-2); }
+.pilot-note-p .b { font-weight: var(--w-strong); color: var(--ink); }
 .pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
                   margin-top: var(--sp-4); }
 .pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
-.pilot-advisory .body { font-size: var(--fs-0); color: var(--ink-2);
-                        white-space: pre-wrap; margin: 0; }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }

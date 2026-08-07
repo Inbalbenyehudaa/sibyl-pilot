@@ -313,7 +313,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
-  'buildPilotModel, pilotTopdown, moneyShort, ' +
+  'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -343,7 +343,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
-        buildPilotModel, pilotTopdown, moneyShort,
+        buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -3231,13 +3231,27 @@ function check(name, cond, detail) {
     els.pilotHeadline.textContent.indexOf(moneyShort(p35walk.total)) !== -1,
     els.pilotHeadline ? els.pilotHeadline.textContent : '(no headline)');
   /* 35i-35k — P4 Inc 2: the walk-up panel. */
-  check('35i the sticky panel carries the walk-up: numbers, components, notes prefilled',
+  check('35i the sticky panel carries the walk-up: numbers, components, notes rendered',
     els.pilotMain.style.display === '' &&
     els.pilotPanel.children.length > 0 &&
-    els.pilotNotesBox.value === 'notes35' &&
+    els.pilotNotesView.children.length > 0 &&
     els.pilotRecalc.disabled === true &&
     els.pilotSubmit.disabled === true,
-    'panel rendered · notes "' + els.pilotNotesBox.value + '" · recalc+submit disabled (no gate, no pending)');
+    'panel rendered · notes view ' + els.pilotNotesView.children.length +
+    ' block(s) · recalc+submit disabled (no gate, no pending)');
+  check('35i2 the notes read view renders **bold** markers: subtitle blocks + inline bold',
+    (() => {
+      const host = document.createElement('div');
+      pilotFormatInto(host, '**What is in**\nDocVault $6K stays\n\n**Drift**: draft vs **rollup**');
+      return host.children.length === 4 &&
+             host.children[0].className === 'pilot-note-h' &&
+             host.children[0].textContent === 'What is in' &&
+             host.children[1].className === 'pilot-note-p' &&
+             host.children[2].className === 'pilot-note-h' &&
+             host.children[2].textContent === 'Drift' &&
+             host.children[3].children.some &&
+             host.children[3].children.some(c => c.className === 'b');
+    })(), 'subtitles become bold blocks, content drops a line, inline bold survives');
   const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
   openGate(p35entry, 'harness draft', 'draft');
   renderPilot();

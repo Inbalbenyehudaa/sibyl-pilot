@@ -816,17 +816,22 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-bar-caption { margin: var(--sp-1) 0 0; font-size: var(--fs-0); color: var(--ink-3);
                      font-variant-numeric: tabular-nums; }
 
-/* The working grid: sticky walk-up panel left, review sections right. */
-#pilotMain { display: grid; grid-template-columns: 340px minmax(0, 1fr);
+/* The working grid: sticky walk-up panel left, review sections right. The
+   grid breaks OUT of the hero's measure on wide screens — the panel earns
+   more room than the reading column above it. */
+#pilotMain { display: grid; grid-template-columns: 430px minmax(0, 1fr);
              gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
+@media (min-width: 1320px) { #pilotMain { margin-left: -88px; margin-right: -88px; } }
 @media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
 #pilotPanel { position: sticky; top: var(--sp-5); }
 .pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
               border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
 .pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
-.pilot-panel-body { padding: var(--sp-5); }
+/* The notes region scrolls INSIDE the sticky panel — numbers and buttons
+   stay on screen however long the notes run. */
+.pilot-panel-body { padding: var(--sp-5); max-height: 52vh; overflow-y: auto; }
 .pilot-panel-nums { display: flex; gap: var(--sp-6); margin-top: var(--sp-3); }
-.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-display);
+.pilot-panel-nums .n { font-size: var(--fs-display-md); font-weight: var(--w-strong);
                        letter-spacing: var(--track-display-md);
                        font-variant-numeric: tabular-nums; color: var(--ink);
                        margin: var(--sp-1) 0 0; }
@@ -846,19 +851,30 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-note-label { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
                     letter-spacing: var(--track-micro-cap); text-transform: uppercase;
                     color: var(--ink-3); margin: var(--sp-4) 0 var(--sp-1); }
+.pilot-note-labelrow { display: flex; justify-content: space-between;
+                       align-items: baseline; margin-top: var(--sp-4); }
+.pilot-note-labelrow .pilot-note-label { margin: 0; }
+.pilot-edit-link { border: 0; background: transparent; color: var(--accent);
+                   font-family: var(--font-body); font-size: var(--fs-0);
+                   font-weight: var(--w-strong); cursor: pointer; padding: 0; }
+.pilot-edit-link:hover { color: var(--accent-deep, var(--accent)); }
 .pilot-notes { width: 100%; border: var(--border-w) solid transparent;
                border-radius: var(--radius-sm); background: transparent;
-               font-family: var(--font-body); font-size: var(--fs-0);
-               color: var(--ink-2); line-height: var(--lh); padding: var(--sp-2);
+               font-family: var(--font-body); font-size: var(--fs-1);
+               color: var(--ink-2); line-height: 1.55; padding: var(--sp-2);
                resize: none; overflow: hidden; }
 .pilot-notes:hover { background: var(--bg-inset); }
 .pilot-notes:focus { outline: none; background: var(--bg-inset);
                      border-color: var(--accent); }
+.pilot-notes-view { cursor: text; margin-top: var(--sp-1); }
+.pilot-note-h { font-size: var(--fs-1); font-weight: var(--w-strong);
+                color: var(--ink); margin: var(--sp-3) 0 var(--sp-1); }
+.pilot-note-p { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.55;
+                margin: 0 0 var(--sp-2); }
+.pilot-note-p .b { font-weight: var(--w-strong); color: var(--ink); }
 .pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
                   margin-top: var(--sp-4); }
 .pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
-.pilot-advisory .body { font-size: var(--fs-0); color: var(--ink-2);
-                        white-space: pre-wrap; margin: 0; }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
@@ -15793,14 +15809,45 @@ function pilotSigned(n) {
 /* Maya's working copy of the forecast notes on the pilot surface. Local to
    the page (nothing leaves without the gate); keyed to the run so a new
    draft resets it, and her edits survive the re-renders in between. */
-let PILOT_NOTES = { key: null, text: '', edited: false };
+let PILOT_NOTES = { key: null, text: '', edited: false, editing: false };
 
 function pilotNotesFor(m) {
   const key = String(m.meta.runN) + '·' + m.meta.kind;
   if (PILOT_NOTES.key !== key) {
-    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false };
+    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false, editing: false };
   }
   return PILOT_NOTES;
+}
+
+/* The model writes its notes with **bold** markers. The read view renders
+   them: a line that OPENS with a bold run becomes a bold subtitle block
+   (content dropped to the next line); mid-line runs render bold inline. */
+function pilotInline(host, text) {
+  String(text).split(/\*\*(.+?)\*\*/).forEach((seg, i) => {
+    if (!seg) return;
+    host.appendChild(pilotEl('span', i % 2 ? 'b' : '', seg));
+  });
+}
+
+function pilotFormatInto(host, text) {
+  host.textContent = '';
+  String(text || '').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t) return;
+    const head = t.match(/^\*\*(.+?)\*\*\s*[:—–-]?\s*(.*)$/);
+    if (head) {
+      host.appendChild(pilotEl('p', 'pilot-note-h', head[1]));
+      if (head[2]) {
+        const p = pilotEl('p', 'pilot-note-p');
+        pilotInline(p, head[2]);
+        host.appendChild(p);
+      }
+      return;
+    }
+    const p = pilotEl('p', 'pilot-note-p');
+    pilotInline(p, t);
+    host.appendChild(p);
+  });
 }
 
 function pilotAutoGrow(el) {
@@ -15882,33 +15929,67 @@ function renderPilotPanel(panel, m) {
   const body = pilotEl('div', 'pilot-panel-body');
   body.appendChild(pilotEl('p', 'hint',
     'Notes are editable — nothing leaves this page until you submit.'));
-  body.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
   const notesState = pilotNotesFor(m);
-  const notes = document.createElement('textarea');
-  notes.className = 'pilot-notes';
-  notes.id = 'pilotNotesBox';
-  notes.rows = 6;
-  notes.value = notesState.text;
-  notes.setAttribute('aria-label', 'Forecast notes');
-  notes.addEventListener('input', function () {
-    PILOT_NOTES.text = notes.value;
-    PILOT_NOTES.edited = true;
-    pilotAutoGrow(notes);
+  const labelRow = pilotEl('div', 'pilot-note-labelrow');
+  labelRow.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
+  const toggle = pilotEl('button', 'pilot-edit-link', notesState.editing ? 'Done' : 'Edit');
+  toggle.type = 'button';
+  toggle.id = 'pilotNotesToggle';
+  toggle.addEventListener('click', function () {
+    PILOT_NOTES.editing = !PILOT_NOTES.editing;
+    renderPilot();
   });
-  body.appendChild(notes);
+  labelRow.appendChild(toggle);
+  body.appendChild(labelRow);
+
+  let notes = null;
+  if (notesState.editing) {
+    notes = document.createElement('textarea');
+    notes.className = 'pilot-notes';
+    notes.id = 'pilotNotesBox';
+    notes.rows = 6;
+    notes.value = notesState.text;
+    notes.setAttribute('aria-label', 'Forecast notes');
+    notes.addEventListener('input', function () {
+      PILOT_NOTES.text = notes.value;
+      PILOT_NOTES.edited = true;
+      pilotAutoGrow(notes);
+    });
+    notes.addEventListener('blur', function () {
+      PILOT_NOTES.editing = false;
+      renderPilot();
+    });
+    body.appendChild(notes);
+  } else {
+    const view = pilotEl('div', 'pilot-notes-view');
+    view.id = 'pilotNotesView';
+    pilotFormatInto(view, notesState.text);
+    if (!view.children.length) {
+      view.appendChild(pilotEl('p', 'pilot-note-p', '(no forecast notes in this run)'));
+    }
+    view.addEventListener('click', function () {
+      PILOT_NOTES.editing = true;
+      renderPilot();
+    });
+    body.appendChild(view);
+  }
 
   const adv = pilotEl('div', 'pilot-advisory');
   adv.appendChild(pilotEl('p', 'pilot-note-label',
     'Sibyl\'s reading · never reaches the VP'));
-  adv.appendChild(pilotEl('p', 'body',
-    m.prose.reading || '(no reading in this run)'));
+  const advBody = pilotEl('div', '');
+  pilotFormatInto(advBody, m.prose.reading);
+  if (!advBody.children.length) {
+    advBody.appendChild(pilotEl('p', 'pilot-note-p', '(no reading in this run)'));
+  }
+  adv.appendChild(advBody);
   body.appendChild(adv);
 
   body.appendChild(pilotEl('p', 'boundary-note',
     'Nothing is sent without human approval.'));
   card.appendChild(body);
   panel.appendChild(card);
-  pilotAutoGrow(notes);
+  if (notes) { pilotAutoGrow(notes); if (notes.focus) notes.focus(); }
 }
 
 function renderPilot() {

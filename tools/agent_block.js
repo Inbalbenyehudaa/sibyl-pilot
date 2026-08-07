@@ -5376,14 +5376,45 @@ function pilotSigned(n) {
 /* Maya's working copy of the forecast notes on the pilot surface. Local to
    the page (nothing leaves without the gate); keyed to the run so a new
    draft resets it, and her edits survive the re-renders in between. */
-let PILOT_NOTES = { key: null, text: '', edited: false };
+let PILOT_NOTES = { key: null, text: '', edited: false, editing: false };
 
 function pilotNotesFor(m) {
   const key = String(m.meta.runN) + '·' + m.meta.kind;
   if (PILOT_NOTES.key !== key) {
-    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false };
+    PILOT_NOTES = { key: key, text: m.prose.forecastNotes, edited: false, editing: false };
   }
   return PILOT_NOTES;
+}
+
+/* The model writes its notes with **bold** markers. The read view renders
+   them: a line that OPENS with a bold run becomes a bold subtitle block
+   (content dropped to the next line); mid-line runs render bold inline. */
+function pilotInline(host, text) {
+  String(text).split(/\*\*(.+?)\*\*/).forEach((seg, i) => {
+    if (!seg) return;
+    host.appendChild(pilotEl('span', i % 2 ? 'b' : '', seg));
+  });
+}
+
+function pilotFormatInto(host, text) {
+  host.textContent = '';
+  String(text || '').split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t) return;
+    const head = t.match(/^\*\*(.+?)\*\*\s*[:—–-]?\s*(.*)$/);
+    if (head) {
+      host.appendChild(pilotEl('p', 'pilot-note-h', head[1]));
+      if (head[2]) {
+        const p = pilotEl('p', 'pilot-note-p');
+        pilotInline(p, head[2]);
+        host.appendChild(p);
+      }
+      return;
+    }
+    const p = pilotEl('p', 'pilot-note-p');
+    pilotInline(p, t);
+    host.appendChild(p);
+  });
 }
 
 function pilotAutoGrow(el) {
@@ -5465,33 +5496,67 @@ function renderPilotPanel(panel, m) {
   const body = pilotEl('div', 'pilot-panel-body');
   body.appendChild(pilotEl('p', 'hint',
     'Notes are editable — nothing leaves this page until you submit.'));
-  body.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
   const notesState = pilotNotesFor(m);
-  const notes = document.createElement('textarea');
-  notes.className = 'pilot-notes';
-  notes.id = 'pilotNotesBox';
-  notes.rows = 6;
-  notes.value = notesState.text;
-  notes.setAttribute('aria-label', 'Forecast notes');
-  notes.addEventListener('input', function () {
-    PILOT_NOTES.text = notes.value;
-    PILOT_NOTES.edited = true;
-    pilotAutoGrow(notes);
+  const labelRow = pilotEl('div', 'pilot-note-labelrow');
+  labelRow.appendChild(pilotEl('p', 'pilot-note-label', 'Forecast notes'));
+  const toggle = pilotEl('button', 'pilot-edit-link', notesState.editing ? 'Done' : 'Edit');
+  toggle.type = 'button';
+  toggle.id = 'pilotNotesToggle';
+  toggle.addEventListener('click', function () {
+    PILOT_NOTES.editing = !PILOT_NOTES.editing;
+    renderPilot();
   });
-  body.appendChild(notes);
+  labelRow.appendChild(toggle);
+  body.appendChild(labelRow);
+
+  let notes = null;
+  if (notesState.editing) {
+    notes = document.createElement('textarea');
+    notes.className = 'pilot-notes';
+    notes.id = 'pilotNotesBox';
+    notes.rows = 6;
+    notes.value = notesState.text;
+    notes.setAttribute('aria-label', 'Forecast notes');
+    notes.addEventListener('input', function () {
+      PILOT_NOTES.text = notes.value;
+      PILOT_NOTES.edited = true;
+      pilotAutoGrow(notes);
+    });
+    notes.addEventListener('blur', function () {
+      PILOT_NOTES.editing = false;
+      renderPilot();
+    });
+    body.appendChild(notes);
+  } else {
+    const view = pilotEl('div', 'pilot-notes-view');
+    view.id = 'pilotNotesView';
+    pilotFormatInto(view, notesState.text);
+    if (!view.children.length) {
+      view.appendChild(pilotEl('p', 'pilot-note-p', '(no forecast notes in this run)'));
+    }
+    view.addEventListener('click', function () {
+      PILOT_NOTES.editing = true;
+      renderPilot();
+    });
+    body.appendChild(view);
+  }
 
   const adv = pilotEl('div', 'pilot-advisory');
   adv.appendChild(pilotEl('p', 'pilot-note-label',
     'Sibyl\'s reading · never reaches the VP'));
-  adv.appendChild(pilotEl('p', 'body',
-    m.prose.reading || '(no reading in this run)'));
+  const advBody = pilotEl('div', '');
+  pilotFormatInto(advBody, m.prose.reading);
+  if (!advBody.children.length) {
+    advBody.appendChild(pilotEl('p', 'pilot-note-p', '(no reading in this run)'));
+  }
+  adv.appendChild(advBody);
   body.appendChild(adv);
 
   body.appendChild(pilotEl('p', 'boundary-note',
     'Nothing is sent without human approval.'));
   card.appendChild(body);
   panel.appendChild(card);
-  pilotAutoGrow(notes);
+  if (notes) { pilotAutoGrow(notes); if (notes.focus) notes.focus(); }
 }
 
 function renderPilot() {
