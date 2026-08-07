@@ -469,6 +469,10 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 
 .stack > * + * { margin-top: var(--sp-3); }
 
+/* The retention note is page chrome, not panel content — it indents with
+   the topbar, not the window edge. */
+#retentionNote { padding: 0 var(--sp-5); }
+
 /* ═══ PILOT VIEW (Phase 4) — the product surface ═══
    Full-width sibling of the console, toggled by the topbar tabs. Its own
    layout grid; every value below resolves to a token. */
@@ -704,7 +708,7 @@ body { overflow-x: hidden; }
   </div>
 </div>
 
-<div class="worldcheck">
+<div class="worldcheck" id="worldcheckRoot">
   <details>
     <summary>Settings — your Anthropic API key</summary>
     <div id="settings">
@@ -1626,31 +1630,11 @@ function renderDataSource(liveLabel, failNote) {
   const note = document.getElementById('retentionNote');
   if (note) {
     if (liveLabel) {
-      note.textContent = 'Pilot mode stores runs and your per-deal decisions in the pilot ' +
-        'database (synthetic data; append-only; visible to anyone with the link).';
-      refreshStoredCount();
+      note.textContent = 'Pilot mode stores runs and your decisions log.';
     } else {
       note.textContent = 'Nothing is stored — runs and decisions live in this tab only and a reload clears them.';
     }
   }
-}
-
-function refreshStoredCount() {
-  try {
-    if (resolveDataMode() !== 'api' || !DATA_API.url) return;
-    fetch(DATA_API.url + '/rest/v1/sibyl_pilot_decisions?select=id&limit=1', {
-      headers: { 'apikey': DATA_API.anonKey, 'Authorization': 'Bearer ' + DATA_API.anonKey,
-                 'Prefer': 'count=exact', 'Range': '0-0' }
-    }).then(function (r) {
-      const cr = r.headers.get('content-range') || '';
-      const total = cr.indexOf('/') !== -1 ? cr.split('/')[1] : '?';
-      const note = document.getElementById('retentionNote');
-      if (note && total !== '?') {
-        note.textContent = 'Pilot mode stores runs and your per-deal decisions in the pilot ' +
-          'database — ' + total + ' record(s) stored (synthetic data; append-only; public read).';
-      }
-    }).catch(function () {});
-  } catch (e) {}
 }
 
 function refreshWriteTokenState() {

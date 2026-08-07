@@ -2002,7 +2002,8 @@ function check(name, cond, detail) {
     'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaRecalcOut',
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState',
-    'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun'];
+    'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
+    'worldcheckRoot'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -2066,16 +2067,18 @@ function check(name, cond, detail) {
   check('21p the Pilot tab swaps the whole console for the pilot surface',
     getActiveTab() === 'pilot' &&
     els.viewPilot.style.display === '' && els.consoleRoot.style.display === 'none' &&
+    els.worldcheckRoot.style.display === 'none' &&
     els.tabPilot.className === 'tab active' && els.tabConsole.className === 'tab' &&
     getSelected() === 'submission',
-    'pilot shown, console hidden, selection untouched');
+    'pilot shown, console + settings hidden, selection untouched');
   selectTab('console');
   check('21q and the Console tab swaps back, selection untouched',
     getActiveTab() === 'console' &&
     els.viewPilot.style.display === 'none' && els.consoleRoot.style.display === '' &&
+    els.worldcheckRoot.style.display === '' &&
     els.tabConsole.className === 'tab active' && els.tabPilot.className === 'tab' &&
     getSelected() === 'submission',
-    'console shown, pilot hidden');
+    'console + settings shown, pilot hidden');
   check('21r the pilot surface ships hidden, outside the console, tabs in the topbar',
     /<div id="consoleRoot">\s*<div class="console">/.test(html) &&
     /<div id="viewPilot" style="display:none">/.test(html) &&

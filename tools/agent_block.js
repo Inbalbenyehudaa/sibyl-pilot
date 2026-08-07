@@ -2594,7 +2594,6 @@ function postPilotDecision(kind, caseId, dealId, payload) {
                              payload: payload || {} })
     }).then(function (r) {
       if (!r.ok) pilotStoreNote('store failed: HTTP ' + r.status);
-      else if (typeof refreshStoredCount === 'function') refreshStoredCount();
     }).catch(function (e) { pilotStoreNote('store failed: ' + e.message); });
     return true;
   } catch (e) { return false; }
@@ -5205,7 +5204,11 @@ function selectTab(which) {
   ACTIVE_TAB = which === 'pilot' ? 'pilot' : 'console';
   const c = document.getElementById('consoleRoot');
   const p = document.getElementById('viewPilot');
+  /* The settings / prompts / world-check block is console chrome — the
+     pilot surface is the product, so it travels with the console. */
+  const w = document.getElementById('worldcheckRoot');
   if (c) c.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
+  if (w) w.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
   if (p) p.style.display = ACTIVE_TAB === 'pilot' ? '' : 'none';
   renderTabs();
   if (ACTIVE_TAB === 'pilot') renderPilot();
