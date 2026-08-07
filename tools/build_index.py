@@ -468,6 +468,22 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                               font-size: var(--fs-0); }
 
 .stack > * + * { margin-top: var(--sp-3); }
+
+/* ═══ PILOT VIEW (Phase 4) — the product surface ═══
+   Full-width sibling of the console, toggled by the topbar tabs. Its own
+   layout grid; every value below resolves to a token. */
+.pilot-wrap { max-width: 1120px; margin: 0 auto;
+              padding: var(--sp-5) var(--sp-6) var(--sp-7); }
+.pilot-empty { padding: var(--sp-7) 0; max-width: 720px; }
+.pilot-eyebrow { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                 letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                 color: var(--accent-deep, var(--accent)); }
+.pilot-empty .headline { font-size: var(--fs-display-xl); font-weight: var(--w-display);
+                         letter-spacing: var(--track-display-xl); line-height: 1.15;
+                         color: var(--ink); margin: var(--sp-3) 0; }
+.pilot-empty .sub { font-size: var(--fs-body-lg); color: var(--ink-2); max-width: 56ch;
+                    margin: 0 0 var(--sp-5); }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -481,6 +497,10 @@ body { overflow-x: hidden; }
 
 <div class="topbar">
   <span class="product">Sibyl</span>
+  <nav class="tabs" id="topTabs">
+    <button type="button" class="tab active" id="tabConsole" data-tab="console">Console</button>
+    <button type="button" class="tab" id="tabPilot" data-tab="pilot">Pilot</button>
+  </nav>
   <span class="badge neutral" id="topStatus">Idle</span>
   <span class="badge danger" id="topFault"></span>
   <span class="badge neutral" id="dataSourceBadge">Embedded</span>
@@ -489,6 +509,9 @@ body { overflow-x: hidden; }
 <div class="statusband warn" id="dataSourceBanner" style="display:none"></div>
 <div class="hint" id="retentionNote"></div>
 
+<!-- P4 — the console wrapper exists so the Pilot tab can swap the whole
+     three-panel surface away without touching any panel inside it. -->
+<div id="consoleRoot">
 <div class="console">
 
   <!-- ══ LEFT — the cases ══════════════════════════════════════════ -->
@@ -661,6 +684,24 @@ body { overflow-x: hidden; }
     </div>
   </div>
 
+</div>
+</div>
+
+<!-- ══ PILOT — the product surface (Phase 4) ═══════════════════════
+     The same run state as the console, rendered the way the pilot
+     would ship it. Hidden until the Pilot tab is selected. -->
+<div id="viewPilot" style="display:none">
+  <div class="pilot-wrap">
+    <div class="pilot-empty">
+      <p class="pilot-eyebrow">Sibyl · pilot preview</p>
+      <p class="headline">The number you can defend.</p>
+      <p class="sub">Sibyl drafts the weekly forecast from the CRM snapshot, the week-over-week
+         deltas and the decision record — every claim cited, and nothing submitted
+         without your call on it.</p>
+      <button type="button" id="pilotRun" class="btn primary">Run the weekly forecast</button>
+      <p class="boundary-note">Nothing is sent without human approval.</p>
+    </div>
+  </div>
 </div>
 
 <div class="worldcheck">
@@ -1422,6 +1463,17 @@ document.getElementById('caseList').addEventListener('click', function (ev) {
   const card = ev.target.closest ? ev.target.closest('.case-card[data-case]') : null;
   if (!card) return;
   selectCase(card.getAttribute('data-case'));
+});
+
+/* P4 — the two surfaces. Delegated on the tab group, same pattern as the
+   case list above. */
+document.getElementById('topTabs').addEventListener('click', function (ev) {
+  const tab = ev.target.closest ? ev.target.closest('.tab[data-tab]') : null;
+  if (!tab) return;
+  selectTab(tab.getAttribute('data-tab'));
+});
+document.getElementById('pilotRun').addEventListener('click', function () {
+  runWeeklyForecast(this);
 });
 
 /* ------------------------------------------------------------------ */

@@ -4665,6 +4665,10 @@ function renderDealGate() {
       });
     }
   }
+
+  /* P4 — the Pilot surface mirrors every state change through the same
+     repaint entry point the console uses. */
+  renderPilot();
 }
 
 function repNotesPending() {
@@ -5176,4 +5180,39 @@ async function runWeeklyForecast(btn) {
      any of Maya's calls the run did not apply. */
   if (s.walk && s.walk.applied) LAST_APPLIED = s.walk.applied;
   renderDealGate();
+}
+
+/* ------------------------------------------------------------------ */
+/* PHASE 4 — THE PILOT VIEW: the product surface                       */
+/*                                                                     */
+/* A second, polished UI over the SAME run state (LAST_RUN, DEAL_GATE, */
+/* LAST_APPLIED). The console stays the exercise-grade record; this    */
+/* surface is what the pilot would ship. The two are siblings toggled  */
+/* by a topbar tab — ACTIVE_TAB is orthogonal to SELECTED_CASE, so     */
+/* renderDealGate()'s three-view logic is untouched.                   */
+/* ------------------------------------------------------------------ */
+
+let ACTIVE_TAB = 'console';
+
+function renderTabs() {
+  const tc = document.getElementById('tabConsole');
+  const tp = document.getElementById('tabPilot');
+  if (tc) tc.className = 'tab' + (ACTIVE_TAB === 'console' ? ' active' : '');
+  if (tp) tp.className = 'tab' + (ACTIVE_TAB === 'pilot' ? ' active' : '');
+}
+
+function selectTab(which) {
+  ACTIVE_TAB = which === 'pilot' ? 'pilot' : 'console';
+  const c = document.getElementById('consoleRoot');
+  const p = document.getElementById('viewPilot');
+  if (c) c.style.display = ACTIVE_TAB === 'console' ? '' : 'none';
+  if (p) p.style.display = ACTIVE_TAB === 'pilot' ? '' : 'none';
+  renderTabs();
+  if (ACTIVE_TAB === 'pilot') renderPilot();
+}
+
+function renderPilot() {
+  /* Inc 0: the shell is static (the empty state lives in the markup).
+     Later increments swap the empty state for the populated surface
+     built from buildPilotModel(). */
 }

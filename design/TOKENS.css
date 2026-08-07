@@ -199,6 +199,25 @@ body::before {
 .topbar .meta { color: var(--ink-3); font-size: var(--fs-0);
   letter-spacing: var(--track-caption); margin-left: auto; }
 
+/* ═══ TABS — the surface switch (console | pilot) ═══
+   A segmented pill in the nav: chip-tinted track, the active segment
+   lifts to the raised surface. Deliberately NOT a filled-indigo pill —
+   the one filled CTA per band stays reserved for the primary action. */
+.tabs {
+  display: inline-flex; gap: var(--sp-1); padding: 3px;
+  border-radius: var(--radius-pill); background: var(--chip);
+  border: var(--border-w) solid var(--line);
+}
+.tab {
+  padding: 5px 14px; border-radius: var(--radius-pill); border: 0;
+  background: transparent; color: var(--ink-3);
+  font-family: var(--font-body); font-size: var(--fs-0); font-weight: var(--w-strong);
+  letter-spacing: var(--track-caption); line-height: 1; cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { background: var(--bg-raise); color: var(--ink); box-shadow: var(--shadow); }
+
 /* minmax(0, 1fr), NOT 1fr: a grid track defaults to a minimum of min-content,
    so any wide child in the middle column — the scoreboard's five tiles were
    the first — widens the whole grid and pushes the run-log rail off the right

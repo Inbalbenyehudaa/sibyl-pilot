@@ -312,6 +312,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'buildDealPayload, getLastRun: () => LAST_RUN, clearLastRun: () => { LAST_RUN = null; }, ' +
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
+  'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -340,6 +341,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         stubReason, stubReasonShort, rationaleProblems, decisionsFromToolInput, flattenRationale,
         WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
+        selectTab, renderTabs, renderPilot, getActiveTab,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -1999,7 +2001,8 @@ function check(name, cond, detail) {
     'caseList', 'mainHead', 'viewSubmission', 'viewDeal', 'topStatus', 'topMeta',
     'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaRecalcOut',
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
-    'writeTokenState'];
+    'writeTokenState',
+    'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -2020,6 +2023,9 @@ function check(name, cond, detail) {
   /* 21h-21k — the case list and selection. */
   SCENARIO = 'gate'; resetCapture();
   dealGateReset();
+  /* P4 baseline first: the stub DOM creates elements lazily, so the pilot /
+     console visibility stubs exist only after one selectTab pass. */
+  selectTab('console');
   selectCase('submission');
   renderCaseList();
   check('21h with no run, the list still offers the submission card',
@@ -2040,6 +2046,7 @@ function check(name, cond, detail) {
   check('21j selecting a deal swaps the work area to that case, and only that case',
     getSelected() === 'DL-0037' &&
     els.viewSubmission.style.display === 'none' && els.viewDeal.style.display === '' &&
+    els.viewPilot.style.display !== '' &&
     /^DL-0037 · PathPoint 5\.0/.test(els.mainHead.textContent) &&
     els.dealGate.children.length === 1 &&
     els.dealGate.children[0].attrs['data-deal'] === 'DL-0037',
@@ -2047,8 +2054,37 @@ function check(name, cond, detail) {
   selectCase('submission');
   check('21k selecting the submission swaps back',
     els.viewSubmission.style.display === '' && els.viewDeal.style.display === 'none' &&
+    els.viewPilot.style.display !== '' &&
     /^Weekly forecast — week 13/.test(els.mainHead.textContent),
     els.mainHead.textContent);
+
+  /* 21p/21q/21r — the Pilot surface (P4). A topbar TAB, deliberately not an
+     eleventh case card (21i's exactly-ten stands): the pilot is a second
+     surface over the same run state, not another case. The tab swaps the
+     whole console away and back; SELECTED_CASE is untouched either way. */
+  selectTab('pilot');
+  check('21p the Pilot tab swaps the whole console for the pilot surface',
+    getActiveTab() === 'pilot' &&
+    els.viewPilot.style.display === '' && els.consoleRoot.style.display === 'none' &&
+    els.tabPilot.className === 'tab active' && els.tabConsole.className === 'tab' &&
+    getSelected() === 'submission',
+    'pilot shown, console hidden, selection untouched');
+  selectTab('console');
+  check('21q and the Console tab swaps back, selection untouched',
+    getActiveTab() === 'console' &&
+    els.viewPilot.style.display === 'none' && els.consoleRoot.style.display === '' &&
+    els.tabConsole.className === 'tab active' && els.tabPilot.className === 'tab' &&
+    getSelected() === 'submission',
+    'console shown, pilot hidden');
+  check('21r the pilot surface ships hidden, outside the console, tabs in the topbar',
+    /<div id="consoleRoot">\s*<div class="console">/.test(html) &&
+    /<div id="viewPilot" style="display:none">/.test(html) &&
+    html.indexOf('<nav class="tabs" id="topTabs">') !== -1 &&
+    html.indexOf('id="topTabs"') < html.indexOf('id="topStatus"') &&
+    html.indexOf('id="viewPilot"') > html.indexOf('id="consoleRoot"') &&
+    (html.match(/<button type="button" class="tab[ "]/g) || []).length === 2 &&
+    /<div id="viewPilot"[\s\S]*?<p class="boundary-note">Nothing is sent without human approval\.<\/p>/.test(html),
+    'consoleRoot wraps the console; viewPilot is its hidden sibling with the boundary note');
 
   /* Status colour means one thing everywhere (SKINS.md rule 3). */
   check('21l case badges use the kit\'s shared status colours, one meaning each',
@@ -2770,6 +2806,7 @@ function check(name, cond, detail) {
   check('28y selecting Evals swaps the work area to the table, and only that',
     els.viewEvals.style.display === '' && els.viewSubmission.style.display === 'none' &&
     els.viewDeal.style.display === 'none' &&
+    els.viewPilot.style.display !== '' &&
     els.mainHead.textContent === 'Evals — five cases, my verdicts',
     els.mainHead.textContent);
   /* NOT renderCaseList() first — the point is that running a case redraws the
