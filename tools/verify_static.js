@@ -313,7 +313,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'resetEvals: () => { Object.keys(EVAL_RESULT).forEach(k => delete EVAL_RESULT[k]); ' +
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
-  'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, ' +
+  'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -343,7 +343,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         WALK_UP_FINAL, plainValue, parseSibylFields, decisionStats, decisionStatsText,
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
-        buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto,
+        buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -3252,6 +3252,33 @@ function check(name, cond, detail) {
              host.children[3].children.some &&
              host.children[3].children.some(c => c.className === 'b');
     })(), 'subtitles become bold blocks, content drops a line, inline bold survives');
+  /* 35l-35n — P4 Inc 3: the per-deal review section. countByClass walks the
+     stub tree, since dynamic nodes carry classes rather than ids. */
+  const countByClass = (node, cls) => {
+    let n = 0;
+    (node.children || []).forEach(c => {
+      if (c.className && c.className.split(' ').indexOf(cls) !== -1) n += 1;
+      n += countByClass(c, cls);
+    });
+    return n;
+  };
+  check('35l the review section renders one collapsed group per rep',
+    els.pilotSections.children.length > 0 &&
+    els.pilotRepGroups.children.length === m35.reps.length &&
+    countByClass(els.pilotRepGroups, 'pilot-deal-row') === 0,
+    els.pilotRepGroups.children.length + ' rep groups, all collapsed');
+  pilotToggleRep(m35.reps[0].name);
+  const rep0deals = m35.deals.filter(d => d.rep === m35.reps[0].name).length;
+  check('35m opening a rep reveals its table, one row per deal, and the state persists',
+    countByClass(els.pilotRepGroups, 'pilot-deal-row') === rep0deals &&
+    (() => { renderPilot(); return countByClass(els.pilotRepGroups, 'pilot-deal-row') === rep0deals; })(),
+    m35.reps[0].name + ' open · ' + rep0deals + ' rows, stable across re-render');
+  m35.reps.forEach(r2 => { if (!(m35.reps[0].name === r2.name)) pilotToggleRep(r2.name); });
+  check('35n verdict chips across all open tables match the model\'s challenge count',
+    countByClass(els.pilotRepGroups, 'up') + countByClass(els.pilotRepGroups, 'down') ===
+      m35.numbers.challengedCount &&
+    countByClass(els.pilotRepGroups, 'pilot-deal-row') === m35.deals.length,
+    m35.numbers.challengedCount + ' challenge chips over ' + m35.deals.length + ' rows');
   const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
   openGate(p35entry, 'harness draft', 'draft');
   renderPilot();

@@ -5559,11 +5559,118 @@ function renderPilotPanel(panel, m) {
   if (notes) { pilotAutoGrow(notes); if (notes.focus) notes.focus(); }
 }
 
+/* ---- section 01: the per-deal review, grouped by rep ---------------- */
+
+let PILOT_REPS_OPEN = {};
+
+function pilotToggleRep(rep) {
+  PILOT_REPS_OPEN[rep] = !PILOT_REPS_OPEN[rep];
+  renderPilot();
+}
+
+function pilotVerdictChip(deal) {
+  if (deal.verdict === 'CHALLENGE_UP') return pilotEl('span', 'pilot-chip up', 'Challenge up');
+  if (deal.verdict === 'CHALLENGE_DOWN') return pilotEl('span', 'pilot-chip down', 'Challenge down');
+  if (deal.verdict.indexOf('INSUFFICIENT') !== -1) {
+    return pilotEl('span', 'pilot-chip insuff', 'Insufficient evidence');
+  }
+  return pilotEl('span', 'pilot-confirm', 'Confirm');
+}
+
+function pilotYourCall(deal) {
+  if (deal.mayaCall) {
+    return (deal.mayaCall.category || deal.mayaCall.action) +
+           (deal.pendingRecalc ? ' · pending recalc' : '');
+  }
+  return deal.appliedCategory;
+}
+
+function pilotSectionTitle(host, eyebrow, title, sub) {
+  const wrap = pilotEl('div', 'pilot-sec-head');
+  wrap.appendChild(pilotEl('p', 'pilot-eyebrow', eyebrow));
+  wrap.appendChild(pilotEl('h2', 'pilot-sec-title', title));
+  if (sub) wrap.appendChild(pilotEl('p', 'pilot-sec-sub', sub));
+  host.appendChild(wrap);
+}
+
+function renderPilotDeals(host, m) {
+  const section = pilotEl('section', 'pilot-section');
+  pilotSectionTitle(section, '01 · Per-deal review', 'Scenario planning, grouped by rep',
+    'Open a rep to see each deal, the reviewer\'s verdict and your call. ' +
+    'Re-calculate applies your calls to the number.');
+
+  const groups = pilotEl('div', '');
+  groups.id = 'pilotRepGroups';
+  m.reps.forEach(rep => {
+    const repDeals = m.deals.filter(d => d.rep === rep.name);
+    const card = pilotEl('div', 'pilot-card pilot-rep');
+
+    const head = pilotEl('button', 'pilot-rep-head', '');
+    head.type = 'button';
+    const left = pilotEl('span', 'pilot-rep-left');
+    left.appendChild(pilotEl('span', 'pilot-chev' +
+      (PILOT_REPS_OPEN[rep.name] ? ' open' : ''), ''));
+    left.appendChild(pilotEl('span', 'pilot-rep-name', rep.name));
+    if (rep.challenged) {
+      left.appendChild(pilotEl('span', 'pilot-rep-chip',
+        rep.challenged + ' challenged'));
+    }
+    head.appendChild(left);
+    head.appendChild(pilotEl('span', 'pilot-rep-sum',
+      'Commit ' + moneyShort(rep.commit) + ' · ' + rep.dealCount +
+      ' deal' + (rep.dealCount === 1 ? '' : 's')));
+    head.addEventListener('click', function () { pilotToggleRep(rep.name); });
+    card.appendChild(head);
+
+    if (PILOT_REPS_OPEN[rep.name]) {
+      const wrap = pilotEl('div', 'pilot-table-wrap');
+      const table = pilotEl('table', 'pilot-table');
+      const thead = pilotEl('thead', '');
+      const hr = pilotEl('tr', '');
+      ['Deal', 'Amount', 'Stage', 'Close', 'Rep', 'Sibyl', 'Verdict', 'Your call']
+        .forEach(h => hr.appendChild(pilotEl('th', '', h)));
+      thead.appendChild(hr);
+      table.appendChild(thead);
+      const tbody = pilotEl('tbody', '');
+      repDeals.forEach(d => {
+        const tr = pilotEl('tr', 'pilot-deal-row');
+        tr.setAttribute('data-deal', d.id);
+        const nameTd = pilotEl('td', '');
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-name', d.name));
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-id', d.id));
+        tr.appendChild(nameTd);
+        tr.appendChild(pilotEl('td', 'num', moneyShort(d.amount)));
+        tr.appendChild(pilotEl('td', 'mute', d.stage));
+        tr.appendChild(pilotEl('td', 'mute num', d.closeDate));
+        tr.appendChild(pilotEl('td', 'mute', d.repCategory));
+        tr.appendChild(pilotEl('td', 'sibyl', d.reviewerCategory));
+        const vTd = pilotEl('td', '');
+        vTd.appendChild(pilotVerdictChip(d));
+        tr.appendChild(vTd);
+        tr.appendChild(pilotEl('td', 'mute', pilotYourCall(d)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      card.appendChild(wrap);
+    }
+    groups.appendChild(card);
+  });
+  section.appendChild(groups);
+  host.appendChild(section);
+}
+
+function renderPilotSections(host, m) {
+  host.textContent = '';
+  renderPilotDeals(host, m);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
   const main = document.getElementById('pilotMain');
   const panel = document.getElementById('pilotPanel');
+  const sections = document.getElementById('pilotSections');
   if (!empty || !hero) return;
   const m = buildPilotModel();
   if (!m) {
@@ -5572,6 +5679,7 @@ function renderPilot() {
     hero.textContent = '';
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
+    if (sections) sections.textContent = '';
     return;
   }
   empty.style.display = 'none';
@@ -5579,6 +5687,7 @@ function renderPilot() {
   hero.textContent = '';
   if (main) main.style.display = '';
   if (panel) renderPilotPanel(panel, m);
+  if (sections) renderPilotSections(sections, m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +

@@ -534,7 +534,9 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
              gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
 @media (min-width: 1320px) { #pilotMain { margin-left: -88px; margin-right: -88px; } }
 @media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
-#pilotPanel { position: sticky; top: var(--sp-5); }
+/* Sticky only in the two-column layout — in the stacked layout a sticky
+   panel would ride down the page and cover the sections beneath it. */
+@media (min-width: 1101px) { #pilotPanel { position: sticky; top: var(--sp-5); } }
 .pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
               border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
 .pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
@@ -586,6 +588,63 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
                   margin-top: var(--sp-4); }
 .pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
+
+/* Section 01 — the per-deal review, grouped by rep. */
+.pilot-section { margin-top: var(--sp-4); }
+.pilot-sec-head { margin-bottom: var(--sp-4); }
+.pilot-sec-title { font-size: var(--fs-display-lg); font-weight: var(--w-display);
+                   letter-spacing: var(--track-display-lg); line-height: 1.1;
+                   color: var(--ink); margin: var(--sp-2) 0 0; }
+.pilot-sec-sub { font-size: var(--fs-1); color: var(--ink-3); margin: var(--sp-2) 0 0;
+                 max-width: 60ch; }
+.pilot-rep { margin-bottom: var(--sp-3); overflow: hidden; }
+.pilot-rep-head { display: flex; justify-content: space-between; align-items: center;
+                  gap: var(--sp-4); width: 100%; padding: var(--sp-4) var(--sp-5);
+                  border: 0; background: transparent; cursor: pointer; text-align: left;
+                  font-family: var(--font-body); }
+.pilot-rep-head:hover { background: var(--bg-inset); }
+.pilot-rep-left { display: inline-flex; align-items: center; gap: var(--sp-3); }
+.pilot-chev { width: 8px; height: 8px; border-right: 2px solid var(--ink-3);
+              border-bottom: 2px solid var(--ink-3); transform: rotate(-45deg);
+              transition: transform .12s ease; flex: none; }
+.pilot-chev.open { transform: rotate(45deg); }
+.pilot-rep-name { font-size: var(--fs-heading-md); font-weight: var(--w-display);
+                  letter-spacing: var(--track-heading-md); color: var(--ink); }
+.pilot-rep-chip { display: inline-flex; padding: 3px 10px; border-radius: var(--radius-pill);
+                  background: var(--chip); color: var(--accent-deep, var(--accent));
+                  font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                  letter-spacing: var(--track-micro-cap); text-transform: uppercase; }
+.pilot-rep-sum { font-size: var(--fs-tabular); letter-spacing: var(--track-tabular);
+                 color: var(--ink-3); font-variant-numeric: tabular-nums;
+                 white-space: nowrap; }
+.pilot-table-wrap { overflow-x: auto; border-top: var(--border-w) solid var(--line); }
+.pilot-table { width: 100%; min-width: 720px; border-collapse: collapse; }
+.pilot-table th { text-align: left; font-size: var(--fs-micro-cap);
+                  font-weight: var(--w-label); letter-spacing: var(--track-micro-cap);
+                  text-transform: uppercase; color: var(--ink-3);
+                  padding: var(--sp-3) var(--sp-3); }
+.pilot-table th:first-child, .pilot-table td:first-child { padding-left: var(--sp-5); }
+.pilot-table th:last-child, .pilot-table td:last-child { padding-right: var(--sp-5); }
+.pilot-table td { padding: var(--sp-3); border-top: var(--border-w) solid var(--line);
+                  font-size: var(--fs-tabular); letter-spacing: var(--track-tabular);
+                  color: var(--ink); vertical-align: top; }
+.pilot-table td.num { font-variant-numeric: tabular-nums; }
+.pilot-table td.mute { color: var(--ink-3); }
+.pilot-table td.sibyl { color: var(--accent-deep, var(--accent)); }
+.pilot-deal-name { display: block; font-size: var(--fs-1); color: var(--ink); }
+.pilot-deal-id { display: block; font-family: var(--font-mono); font-size: var(--fs-micro);
+                 color: var(--ink-3); font-variant-numeric: tabular-nums;
+                 margin-top: 2px; }
+.pilot-chip { display: inline-flex; padding: 3px 10px; border-radius: var(--radius-pill);
+              font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+              letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+              white-space: nowrap; }
+.pilot-chip.up { background: var(--chip); color: var(--accent-deep, var(--accent)); }
+.pilot-chip.down { background: color-mix(in srgb, var(--ruby) 10%, transparent);
+                   color: var(--ruby); }
+.pilot-chip.insuff { background: color-mix(in srgb, var(--warn) 14%, transparent);
+                     color: var(--warn); }
+.pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }

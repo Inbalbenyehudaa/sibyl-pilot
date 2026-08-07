@@ -823,7 +823,9 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
              gap: var(--sp-6); align-items: start; margin-top: var(--sp-6); }
 @media (min-width: 1320px) { #pilotMain { margin-left: -88px; margin-right: -88px; } }
 @media (max-width: 1100px) { #pilotMain { grid-template-columns: 1fr; } }
-#pilotPanel { position: sticky; top: var(--sp-5); }
+/* Sticky only in the two-column layout — in the stacked layout a sticky
+   panel would ride down the page and cover the sections beneath it. */
+@media (min-width: 1101px) { #pilotPanel { position: sticky; top: var(--sp-5); } }
 .pilot-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
               border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow)); }
 .pilot-panel-head { padding: var(--sp-5); border-bottom: var(--border-w) solid var(--line); }
@@ -875,6 +877,63 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-advisory { border-left: 3px solid var(--magenta); padding-left: var(--sp-3);
                   margin-top: var(--sp-4); }
 .pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
+
+/* Section 01 — the per-deal review, grouped by rep. */
+.pilot-section { margin-top: var(--sp-4); }
+.pilot-sec-head { margin-bottom: var(--sp-4); }
+.pilot-sec-title { font-size: var(--fs-display-lg); font-weight: var(--w-display);
+                   letter-spacing: var(--track-display-lg); line-height: 1.1;
+                   color: var(--ink); margin: var(--sp-2) 0 0; }
+.pilot-sec-sub { font-size: var(--fs-1); color: var(--ink-3); margin: var(--sp-2) 0 0;
+                 max-width: 60ch; }
+.pilot-rep { margin-bottom: var(--sp-3); overflow: hidden; }
+.pilot-rep-head { display: flex; justify-content: space-between; align-items: center;
+                  gap: var(--sp-4); width: 100%; padding: var(--sp-4) var(--sp-5);
+                  border: 0; background: transparent; cursor: pointer; text-align: left;
+                  font-family: var(--font-body); }
+.pilot-rep-head:hover { background: var(--bg-inset); }
+.pilot-rep-left { display: inline-flex; align-items: center; gap: var(--sp-3); }
+.pilot-chev { width: 8px; height: 8px; border-right: 2px solid var(--ink-3);
+              border-bottom: 2px solid var(--ink-3); transform: rotate(-45deg);
+              transition: transform .12s ease; flex: none; }
+.pilot-chev.open { transform: rotate(45deg); }
+.pilot-rep-name { font-size: var(--fs-heading-md); font-weight: var(--w-display);
+                  letter-spacing: var(--track-heading-md); color: var(--ink); }
+.pilot-rep-chip { display: inline-flex; padding: 3px 10px; border-radius: var(--radius-pill);
+                  background: var(--chip); color: var(--accent-deep, var(--accent));
+                  font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                  letter-spacing: var(--track-micro-cap); text-transform: uppercase; }
+.pilot-rep-sum { font-size: var(--fs-tabular); letter-spacing: var(--track-tabular);
+                 color: var(--ink-3); font-variant-numeric: tabular-nums;
+                 white-space: nowrap; }
+.pilot-table-wrap { overflow-x: auto; border-top: var(--border-w) solid var(--line); }
+.pilot-table { width: 100%; min-width: 720px; border-collapse: collapse; }
+.pilot-table th { text-align: left; font-size: var(--fs-micro-cap);
+                  font-weight: var(--w-label); letter-spacing: var(--track-micro-cap);
+                  text-transform: uppercase; color: var(--ink-3);
+                  padding: var(--sp-3) var(--sp-3); }
+.pilot-table th:first-child, .pilot-table td:first-child { padding-left: var(--sp-5); }
+.pilot-table th:last-child, .pilot-table td:last-child { padding-right: var(--sp-5); }
+.pilot-table td { padding: var(--sp-3); border-top: var(--border-w) solid var(--line);
+                  font-size: var(--fs-tabular); letter-spacing: var(--track-tabular);
+                  color: var(--ink); vertical-align: top; }
+.pilot-table td.num { font-variant-numeric: tabular-nums; }
+.pilot-table td.mute { color: var(--ink-3); }
+.pilot-table td.sibyl { color: var(--accent-deep, var(--accent)); }
+.pilot-deal-name { display: block; font-size: var(--fs-1); color: var(--ink); }
+.pilot-deal-id { display: block; font-family: var(--font-mono); font-size: var(--fs-micro);
+                 color: var(--ink-3); font-variant-numeric: tabular-nums;
+                 margin-top: 2px; }
+.pilot-chip { display: inline-flex; padding: 3px 10px; border-radius: var(--radius-pill);
+              font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+              letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+              white-space: nowrap; }
+.pilot-chip.up { background: var(--chip); color: var(--accent-deep, var(--accent)); }
+.pilot-chip.down { background: color-mix(in srgb, var(--ruby) 10%, transparent);
+                   color: var(--ruby); }
+.pilot-chip.insuff { background: color-mix(in srgb, var(--warn) 14%, transparent);
+                     color: var(--warn); }
+.pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
@@ -15992,11 +16051,118 @@ function renderPilotPanel(panel, m) {
   if (notes) { pilotAutoGrow(notes); if (notes.focus) notes.focus(); }
 }
 
+/* ---- section 01: the per-deal review, grouped by rep ---------------- */
+
+let PILOT_REPS_OPEN = {};
+
+function pilotToggleRep(rep) {
+  PILOT_REPS_OPEN[rep] = !PILOT_REPS_OPEN[rep];
+  renderPilot();
+}
+
+function pilotVerdictChip(deal) {
+  if (deal.verdict === 'CHALLENGE_UP') return pilotEl('span', 'pilot-chip up', 'Challenge up');
+  if (deal.verdict === 'CHALLENGE_DOWN') return pilotEl('span', 'pilot-chip down', 'Challenge down');
+  if (deal.verdict.indexOf('INSUFFICIENT') !== -1) {
+    return pilotEl('span', 'pilot-chip insuff', 'Insufficient evidence');
+  }
+  return pilotEl('span', 'pilot-confirm', 'Confirm');
+}
+
+function pilotYourCall(deal) {
+  if (deal.mayaCall) {
+    return (deal.mayaCall.category || deal.mayaCall.action) +
+           (deal.pendingRecalc ? ' · pending recalc' : '');
+  }
+  return deal.appliedCategory;
+}
+
+function pilotSectionTitle(host, eyebrow, title, sub) {
+  const wrap = pilotEl('div', 'pilot-sec-head');
+  wrap.appendChild(pilotEl('p', 'pilot-eyebrow', eyebrow));
+  wrap.appendChild(pilotEl('h2', 'pilot-sec-title', title));
+  if (sub) wrap.appendChild(pilotEl('p', 'pilot-sec-sub', sub));
+  host.appendChild(wrap);
+}
+
+function renderPilotDeals(host, m) {
+  const section = pilotEl('section', 'pilot-section');
+  pilotSectionTitle(section, '01 · Per-deal review', 'Scenario planning, grouped by rep',
+    'Open a rep to see each deal, the reviewer\'s verdict and your call. ' +
+    'Re-calculate applies your calls to the number.');
+
+  const groups = pilotEl('div', '');
+  groups.id = 'pilotRepGroups';
+  m.reps.forEach(rep => {
+    const repDeals = m.deals.filter(d => d.rep === rep.name);
+    const card = pilotEl('div', 'pilot-card pilot-rep');
+
+    const head = pilotEl('button', 'pilot-rep-head', '');
+    head.type = 'button';
+    const left = pilotEl('span', 'pilot-rep-left');
+    left.appendChild(pilotEl('span', 'pilot-chev' +
+      (PILOT_REPS_OPEN[rep.name] ? ' open' : ''), ''));
+    left.appendChild(pilotEl('span', 'pilot-rep-name', rep.name));
+    if (rep.challenged) {
+      left.appendChild(pilotEl('span', 'pilot-rep-chip',
+        rep.challenged + ' challenged'));
+    }
+    head.appendChild(left);
+    head.appendChild(pilotEl('span', 'pilot-rep-sum',
+      'Commit ' + moneyShort(rep.commit) + ' · ' + rep.dealCount +
+      ' deal' + (rep.dealCount === 1 ? '' : 's')));
+    head.addEventListener('click', function () { pilotToggleRep(rep.name); });
+    card.appendChild(head);
+
+    if (PILOT_REPS_OPEN[rep.name]) {
+      const wrap = pilotEl('div', 'pilot-table-wrap');
+      const table = pilotEl('table', 'pilot-table');
+      const thead = pilotEl('thead', '');
+      const hr = pilotEl('tr', '');
+      ['Deal', 'Amount', 'Stage', 'Close', 'Rep', 'Sibyl', 'Verdict', 'Your call']
+        .forEach(h => hr.appendChild(pilotEl('th', '', h)));
+      thead.appendChild(hr);
+      table.appendChild(thead);
+      const tbody = pilotEl('tbody', '');
+      repDeals.forEach(d => {
+        const tr = pilotEl('tr', 'pilot-deal-row');
+        tr.setAttribute('data-deal', d.id);
+        const nameTd = pilotEl('td', '');
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-name', d.name));
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-id', d.id));
+        tr.appendChild(nameTd);
+        tr.appendChild(pilotEl('td', 'num', moneyShort(d.amount)));
+        tr.appendChild(pilotEl('td', 'mute', d.stage));
+        tr.appendChild(pilotEl('td', 'mute num', d.closeDate));
+        tr.appendChild(pilotEl('td', 'mute', d.repCategory));
+        tr.appendChild(pilotEl('td', 'sibyl', d.reviewerCategory));
+        const vTd = pilotEl('td', '');
+        vTd.appendChild(pilotVerdictChip(d));
+        tr.appendChild(vTd);
+        tr.appendChild(pilotEl('td', 'mute', pilotYourCall(d)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      card.appendChild(wrap);
+    }
+    groups.appendChild(card);
+  });
+  section.appendChild(groups);
+  host.appendChild(section);
+}
+
+function renderPilotSections(host, m) {
+  host.textContent = '';
+  renderPilotDeals(host, m);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
   const main = document.getElementById('pilotMain');
   const panel = document.getElementById('pilotPanel');
+  const sections = document.getElementById('pilotSections');
   if (!empty || !hero) return;
   const m = buildPilotModel();
   if (!m) {
@@ -16005,6 +16171,7 @@ function renderPilot() {
     hero.textContent = '';
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
+    if (sections) sections.textContent = '';
     return;
   }
   empty.style.display = 'none';
@@ -16012,6 +16179,7 @@ function renderPilot() {
   hero.textContent = '';
   if (main) main.style.display = '';
   if (panel) renderPilotPanel(panel, m);
+  if (sections) renderPilotSections(sections, m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +
