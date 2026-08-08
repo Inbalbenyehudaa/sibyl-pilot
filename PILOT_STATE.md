@@ -17,15 +17,14 @@ Inc 4 polish), Inc 6 at `f488921`. Keep it to ONE session at a time.
 | Course submission (FROZEN) | `../agentic-ai-capstone-develop-companion-v0.3` | `Inbalbenyehudaa/sibyl` | inbalbenyehudaa.github.io/sibyl/ | Frozen at `2a5f08e`. NEVER touched until submitted. D09+D10 remain; Week 8 deadline. |
 | Pilot (this folder) | `sibyl-pilot` | `Inbalbenyehudaa/sibyl-pilot` | inbalbenyehudaa.github.io/sibyl-pilot/ | P0–P3 ✅ · **P4 Inc 0–6 ✅ live-QA'd + deployed** · §56+§57 agent fixes ✅ · **431 checks green** · five-for-five evals ✅ 2026-08-08 |
 
-**Eval status: ⚠ OPEN DEBT (2026-08-08, third round).** Timeline: five-for-five passed on the
-§56+§57 Sonnet build → Stage 2 moved to **Opus 5** (`8efd457`) + §58 parse fix (`3978cd0`) →
-**five-for-five passed AGAIN on the Opus 5 + §58 build (user-confirmed 2026-08-08)** → then,
-on the user's instruction, a **COMMUNICATION STYLE section was added to `sibyl_prompt.md`**
-(after CONTEXT; tone: direct/concise, metrics-first, no per-deal confidence percentages, no
-technical jargon; 7x9 cap raised 14,000→14,500 for it). Per the prompt-change rule this
-requires a **live five-eval re-run — NOT YET DONE.** Watch item on that run: "avoid technical
-jargon" vs the mandatory citation tags — if citations drop, that bullet is the suspect. The
-stub saga and the field-count saga remain closed (below).
+**Eval status: ✅ NO DEBT (2026-08-08, closed three times over).** Five-for-five passed live
+three times on 2026-08-08: (1) the §56+§57 Sonnet build; (2) after Stage 2 moved to **Opus 5**
+(`8efd457`) + the §58 parse fix (`3978cd0`); (3) after the user-authored **COMMUNICATION
+STYLE section** landed in `sibyl_prompt.md` (after CONTEXT; 7x9 cap now 14,500). The
+citation-tag watch item on run 3 cleared — "avoid technical jargon" coexists with the
+citation contract. **The validated configuration: Stage 1 `claude-sonnet-5`, Stage 2
+`claude-opus-5`, prompt with tone section.** Any further prompt/model/data/agent-visible-text
+change reopens the debt. The stub saga and the field-count saga remain closed (below).
 
 ## Phase 4 — the Pilot view (IN PROGRESS)
 
