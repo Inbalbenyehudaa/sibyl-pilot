@@ -5880,6 +5880,23 @@ function renderPilotDeals(host, m) {
    win-rate card. All of it from decisionStats() over decisions_log.csv;
    nothing here is the model narrating its own track record. */
 
+let PILOT_REG_OPEN = false;
+
+function pilotToggleReg() {
+  PILOT_REG_OPEN = !PILOT_REG_OPEN;
+  renderPilot();
+}
+
+/* The scales mark for the register head — an inline SVG in token color,
+   because the design system bans emoji-as-icons (check 21e). */
+var PILOT_SCALES_SVG =
+  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"' +
+  ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>' +
+  '<path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>' +
+  '<path d="M7 21h10"></path><path d="M12 3v18"></path>' +
+  '<path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path></svg>';
+
 function renderPilotRecon(host, m) {
   const r = m.record;
   const section = pilotEl('section', 'pilot-section');
@@ -5906,67 +5923,91 @@ function renderPilotRecon(host, m) {
       tiles.appendChild(st);
     });
     tilesCard.appendChild(tiles);
-    tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
-      'Week ending ' + rc.week + ' · decisions_log.csv'));
   } else {
     tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
       'No weekly summary on the log yet.'));
   }
   grid.appendChild(tilesCard);
 
-  /* the override win-rate card */
+  /* the override win-rate card — the QA'd template: eyebrow, the rate,
+     one concise line, and the rate as a bar. */
   const dark = pilotEl('div', 'pilot-dark-card');
   dark.id = 'pilotWinRate';
   dark.appendChild(pilotEl('p', 'k', 'Override win rate'));
   dark.appendChild(pilotEl('p', 'n',
     r.winRatePct === null ? '—' : r.winRatePct + '%'));
   dark.appendChild(pilotEl('p', 'd',
-    r.resolved + ' resolved disagreement' + (r.resolved === 1 ? '' : 's') +
-    ' · draft won ' + r.draftWins + ' · Maya won ' + r.mayaWins));
-  if (r.openDisputes.length) {
-    dark.appendChild(pilotEl('p', 'd',
-      r.openDisputes.length + ' still open — ' +
-      r.openDisputes.map(o => o.id + ' ' + o.name).join(', ')));
+    r.mayaWins + ' Maya win' + (r.mayaWins === 1 ? '' : 's') + ' · ' +
+    r.draftWins + ' draft win' + (r.draftWins === 1 ? '' : 's') + ' · ' +
+    r.openDisputes.length + ' open'));
+  if (r.winRatePct !== null) {
+    const track = pilotEl('div', 'pilot-dark-track');
+    const fill = pilotEl('div', 'pilot-dark-fill');
+    fill.style.width = Math.max(0, Math.min(100, r.winRatePct)) + '%';
+    track.appendChild(fill);
+    dark.appendChild(track);
   }
   grid.appendChild(dark);
   section.appendChild(grid);
 
-  /* the disagreement register, row by row */
+  /* the disagreement register — collapsed to its headline until opened */
   if (r.register.length) {
-    const card = pilotEl('div', 'pilot-card');
-    const wrap = pilotEl('div', 'pilot-table-wrap');
-    const table = pilotEl('table', 'pilot-table');
-    const thead = pilotEl('thead', '');
-    const hr = pilotEl('tr', '');
-    ['Deal', 'Rep', 'Draft', 'Maya\'s call', 'Outcome', 'Winner']
-      .forEach(h => hr.appendChild(pilotEl('th', '', h)));
-    thead.appendChild(hr);
-    table.appendChild(thead);
-    const tbody = pilotEl('tbody', '');
-    r.register.forEach(row => {
-      const tr = pilotEl('tr', 'pilot-reg-row');
-      const nameTd = pilotEl('td', '');
-      nameTd.appendChild(pilotEl('span', 'pilot-deal-name', row.name));
-      nameTd.appendChild(pilotEl('span', 'pilot-deal-id', row.id));
-      tr.appendChild(nameTd);
-      tr.appendChild(pilotEl('td', 'mute', row.rep));
-      tr.appendChild(pilotEl('td', 'mute', row.draft));
-      tr.appendChild(pilotEl('td', 'sibyl', row.maya));
-      tr.appendChild(pilotEl('td', 'mute', row.outcome || '—'));
-      const wTd = pilotEl('td', '');
-      if (row.status === 'Open') {
-        wTd.appendChild(pilotEl('span', 'pilot-chip insuff', 'Open'));
-      } else if (row.winner === 'Maya') {
-        wTd.appendChild(pilotEl('span', 'pilot-chip up', 'Maya'));
-      } else {
-        wTd.appendChild(pilotEl('span', 'pilot-confirm', row.winner || '—'));
-      }
-      tr.appendChild(wTd);
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    card.appendChild(wrap);
+    const card = pilotEl('div', 'pilot-card pilot-reg');
+    const head = pilotEl('button', 'pilot-reg-head', '');
+    head.type = 'button';
+    head.id = 'pilotRegHead';
+    const left = pilotEl('div', 'pilot-reg-left');
+    const titleRow = pilotEl('div', 'pilot-reg-titlerow');
+    const ic = pilotEl('span', 'pilot-reg-ic', '');
+    ic.innerHTML = PILOT_SCALES_SVG;
+    titleRow.appendChild(ic);
+    titleRow.appendChild(pilotEl('span', 'pilot-reg-title', 'Disagreement register'));
+    left.appendChild(titleRow);
+    left.appendChild(pilotEl('p', 'pilot-reg-desc',
+      'Sibyl-vs-Maya disputes, open and resolved. Overrides are hypotheses ' +
+      'until a deal resolves.'));
+    head.appendChild(left);
+    head.appendChild(pilotEl('span', 'pilot-chev' + (PILOT_REG_OPEN ? ' open' : ''), ''));
+    head.addEventListener('click', pilotToggleReg);
+    card.appendChild(head);
+
+    if (PILOT_REG_OPEN) {
+      const wrap = pilotEl('div', 'pilot-table-wrap');
+      const table = pilotEl('table', 'pilot-table');
+      const thead = pilotEl('thead', '');
+      const hr = pilotEl('tr', '');
+      ['Deal', 'Rep', 'Sibyl', 'Maya\'s call', 'Outcome', 'Winner']
+        .forEach(h => hr.appendChild(pilotEl('th', '', h)));
+      thead.appendChild(hr);
+      table.appendChild(thead);
+      const tbody = pilotEl('tbody', '');
+      r.register.forEach(row => {
+        const tr = pilotEl('tr', 'pilot-reg-row');
+        const nameTd = pilotEl('td', '');
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-name', row.name));
+        nameTd.appendChild(pilotEl('span', 'pilot-deal-id', row.id));
+        tr.appendChild(nameTd);
+        tr.appendChild(pilotEl('td', 'mute', row.rep));
+        tr.appendChild(pilotEl('td', 'mute', row.draft));
+        tr.appendChild(pilotEl('td', 'sibyl', row.maya));
+        tr.appendChild(pilotEl('td', 'mute', row.outcome || '—'));
+        const wTd = pilotEl('td', '');
+        if (row.status === 'Open') {
+          wTd.appendChild(pilotEl('span', 'pilot-chip insuff', 'Open'));
+        } else if (row.winner === 'Maya') {
+          wTd.appendChild(pilotEl('span', 'pilot-chip up', 'Maya'));
+        } else if (row.winner === 'Draft') {
+          wTd.appendChild(pilotEl('span', 'pilot-confirm', 'Sibyl'));
+        } else {
+          wTd.appendChild(pilotEl('span', 'pilot-confirm', row.winner || '—'));
+        }
+        tr.appendChild(wTd);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      card.appendChild(wrap);
+    }
     section.appendChild(card);
   }
   host.appendChild(section);
@@ -5982,8 +6023,11 @@ function pilotChaseRows(text) {
     .map(s => s.replace(/^\s*[-*+]\s*/, '').trim())
     .filter(Boolean)
     .map(line => {
-      const mm = /^(.{2,64}?)\s+[—–]\s+(.+)$/.exec(line);
-      return mm ? { who: mm[1], what: mm[2] } : { who: null, what: line };
+      const mm = /^(.{2,68}?)\s+[—–]\s+(.+)$/.exec(line);
+      /* The who cell renders as plain text (or a link), so bold markers
+         would show as literal asterisks — strip them here. */
+      return mm ? { who: plainValue(mm[1]).trim(), what: mm[2] }
+                : { who: null, what: line };
     });
 }
 
@@ -6013,7 +6057,19 @@ function renderPilotChase(host, m) {
       tr.appendChild(td);
     } else {
       const whoTd = pilotEl('td', '');
-      whoTd.appendChild(pilotEl('span', 'pilot-deal-name', row.who));
+      /* A who that names one of this run's open deals links straight into
+         the same drawer the per-deal review opens. */
+      const idm = /DL-\d{4}/.exec(row.who);
+      const dealId = idm && m.deals.some(d => d.id === idm[0]) ? idm[0] : null;
+      if (dealId) {
+        const link = pilotEl('button', 'pilot-chase-link', row.who);
+        link.type = 'button';
+        link.setAttribute('data-deal', dealId);
+        link.addEventListener('click', function () { pilotOpenDrawer(dealId); });
+        whoTd.appendChild(link);
+      } else {
+        whoTd.appendChild(pilotEl('span', 'pilot-deal-name', row.who));
+      }
       tr.appendChild(whoTd);
       const whatTd = pilotEl('td', 'mute');
       pilotInline(whatTd, row.what);

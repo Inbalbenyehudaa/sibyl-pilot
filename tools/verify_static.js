@@ -350,7 +350,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
   'PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered: () => PILOT_ENTERED, ' +
-  'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, ' +
+  'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, pilotToggleReg, ' +
   'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
@@ -383,7 +383,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
-        PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered, setPilotEntered,
+        PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered, setPilotEntered, pilotToggleReg,
         pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
@@ -3309,7 +3309,7 @@ function check(name, cond, detail) {
     band: { code: 'OK', tone: 'ok' },
     scan: { parsed: true, found: [], missing: [],
             values: { forecast_notes: 'notes35', sibyl_reading: 'read35',
-                      chase_list: '- DL-0150 Halcyon Freight — no meeting brief on file; ' +
+                      chase_list: '- **DL-0150 Halcyon Freight** — no meeting brief on file; ' +
                                   'ask for the EB readout [M5.3]\n' +
                                   'Brief the team on stale stage data before Friday' } },
     refusal: { refused: false }, readings: p35readings, walk: p35walk,
@@ -3505,20 +3505,34 @@ function check(name, cond, detail) {
     ' vs submitted ' +
     money(m35b.record.reconciliation ? m35b.record.reconciliation.submitted : 0));
   renderPilot();
-  check('35u the reconciliation section renders tiles, the win-rate card, and every register row',
+  check('35u tiles + the win-rate card (template line, magenta bar); the register opens on demand',
     (() => {
       const ns = textsByClass(els.pilotSections, 'n');
-      return countByClass(els.pilotSections, 'pilot-reg-row') === 7 &&
-             ns.indexOf('$663.7K') !== -1 && ns.indexOf('$500K') !== -1 &&
-             ns.indexOf('-$163.7K') !== -1 &&
-             textsByClass(els.pilotWinRate, 'n')[0] === '33%';
+      const d = textsByClass(els.pilotWinRate, 'd');
+      if (countByClass(els.pilotSections, 'pilot-reg-row') !== 0) return false;   /* collapsed */
+      if (countByClass(els.pilotSections, 'pilot-reg-head') !== 1) return false;
+      if (ns.indexOf('$663.7K') === -1 || ns.indexOf('$500K') === -1 ||
+          ns.indexOf('-$163.7K') === -1) return false;
+      if (textsByClass(els.pilotWinRate, 'n')[0] !== '33%') return false;
+      if (d.join('|') !== '2 Maya wins · 4 draft wins · 1 open') return false;
+      if (countByClass(els.pilotWinRate, 'pilot-dark-fill') !== 1) return false;
+      pilotToggleReg();
+      const open = countByClass(els.pilotSections, 'pilot-reg-row') === 7 &&
+                   textsByClass(els.pilotSections, 'pilot-confirm')
+                     .filter(t => t === 'Sibyl').length === 4;   /* Draft wins render as Sibyl */
+      pilotToggleReg();
+      return open && countByClass(els.pilotSections, 'pilot-reg-row') === 0;
     })(),
-    countByClass(els.pilotSections, 'pilot-reg-row') + ' rows · ' +
-    textsByClass(els.pilotWinRate, 'n')[0] + ' win rate');
-  check('35v the chase list parses "who — what" into cells and keeps unsplit lines whole',
-    countByClass(els.pilotChase, 'pilot-chase-row') === 2 &&
-    textsByClass(els.pilotChase, 'pilot-deal-name').join('|') === 'DL-0150 Halcyon Freight',
-    countByClass(els.pilotChase, 'pilot-chase-row') + ' rows, one split, one prose fallback');
+    'collapsed by default · 33% · "2 Maya wins · 4 draft wins · 1 open" · 7 rows when open, Draft→Sibyl');
+  check('35v the chase list strips ** from the who, links open deals, keeps unsplit lines whole',
+    (() => {
+      const links = textsByClass(els.pilotChase, 'pilot-chase-link');
+      return countByClass(els.pilotChase, 'pilot-chase-row') === 2 &&
+             links.length === 1 && links[0] === 'DL-0150 Halcyon Freight' &&
+             links[0].indexOf('*') === -1;
+    })(),
+    countByClass(els.pilotChase, 'pilot-chase-row') + ' rows · link "' +
+    (textsByClass(els.pilotChase, 'pilot-chase-link')[0] || '(none)') + '"');
   check('35w the chase list is the LAST section on the page',
     els.pilotSections.children.length === 3 &&
     els.pilotSections.children[2].id === 'pilotChase',

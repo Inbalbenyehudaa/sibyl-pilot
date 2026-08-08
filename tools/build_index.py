@@ -632,7 +632,10 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-advisory .pilot-note-label { margin-top: 0; color: var(--accent-deep, var(--accent)); }
 
 /* Section 01 — the per-deal review, grouped by rep. */
-.pilot-section { margin-top: var(--sp-4); }
+/* Sections breathe: 64px between 01/02/03; the first stays aligned with
+   the sticky panel's top. */
+.pilot-section { margin-top: var(--sp-7); }
+.pilot-section:first-child { margin-top: var(--sp-4); }
 .pilot-sec-head { margin-bottom: var(--sp-4); }
 .pilot-sec-title { font-size: var(--fs-display-lg); font-weight: var(--w-display);
                    letter-spacing: var(--track-display-lg); line-height: 1.1;
@@ -700,22 +703,48 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                      align-items: flex-end; }
 .pilot-recon-cap { margin: var(--sp-4) 0 0; font-size: var(--fs-0);
                    color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.pilot-dark-card { background: var(--ink); color: var(--bg);
+.pilot-dark-card { background: color-mix(in srgb, var(--accent-deep, var(--accent)) 24%, var(--ink));
+                   color: var(--bg);
                    border-radius: var(--radius);
                    box-shadow: var(--shadow-2, var(--shadow));
-                   padding: var(--sp-5); display: flex; flex-direction: column;
+                   padding: var(--sp-6) var(--sp-5); display: flex; flex-direction: column;
                    justify-content: center; }
 .pilot-dark-card .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
                       letter-spacing: var(--track-micro-cap); text-transform: uppercase;
                       color: color-mix(in srgb, var(--bg) 72%, transparent);
                       margin: 0; }
-.pilot-dark-card .n { font-size: var(--fs-display-xl); font-weight: var(--w-display);
-                      letter-spacing: var(--track-display-xl);
+.pilot-dark-card .n { font-size: var(--fs-display-xxl); font-weight: var(--w-display);
+                      letter-spacing: var(--track-display-xxl); line-height: 1.05;
                       font-variant-numeric: tabular-nums;
-                      margin: var(--sp-1) 0 0; }
-.pilot-dark-card .d { font-size: var(--fs-0); line-height: 1.5;
-                      color: color-mix(in srgb, var(--bg) 80%, transparent);
+                      margin: var(--sp-3) 0 0; }
+.pilot-dark-card .d { font-size: var(--fs-body-lg); line-height: 1.5;
+                      color: color-mix(in srgb, var(--bg) 82%, transparent);
                       margin: var(--sp-2) 0 0; }
+.pilot-dark-track { height: 8px; border-radius: var(--radius-pill);
+                    background: color-mix(in srgb, var(--bg) 16%, transparent);
+                    overflow: hidden; margin-top: var(--sp-5); }
+.pilot-dark-fill { height: 100%; background: var(--magenta);
+                   border-radius: var(--radius-pill); }
+
+/* The collapsible register head — headline + scales mark + one line of
+   description; the chevron mirrors the rep groups. */
+.pilot-reg-head { display: flex; justify-content: space-between; align-items: center;
+                  gap: var(--sp-4); width: 100%; padding: var(--sp-5);
+                  border: 0; background: transparent; cursor: pointer;
+                  text-align: left; font-family: var(--font-body); }
+.pilot-reg-head:hover { background: var(--bg-inset); }
+.pilot-reg-titlerow { display: flex; align-items: center; gap: var(--sp-3); }
+.pilot-reg-ic { display: inline-flex; color: var(--accent); flex: none; }
+.pilot-reg-title { font-size: var(--fs-heading-md); font-weight: var(--w-display);
+                   letter-spacing: var(--track-heading-md); color: var(--ink); }
+.pilot-reg-desc { font-size: var(--fs-1); color: var(--ink-3); line-height: 1.5;
+                  margin: var(--sp-2) 0 0; max-width: 64ch; }
+.pilot-chase-link { border: 0; background: transparent; padding: 0; cursor: pointer;
+                    font-family: var(--font-body); font-size: var(--fs-1);
+                    color: var(--accent); font-weight: var(--w-strong);
+                    text-align: left; }
+.pilot-chase-link:hover { color: var(--accent-deep, var(--accent));
+                          text-decoration: underline; }
 
 /* Inc 4 — the deal drawer. The row is the door; the drawer slides over
    from the right and scrolls on its own. Token-only, no new colors. */
