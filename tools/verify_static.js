@@ -3615,17 +3615,19 @@ function check(name, cond, detail) {
     })(),
     els.pilotSubmit.textContent + ' · toast: ' +
     textsByClass(els.pilotToasts, 't').join(' | '));
-  check('35j2 while a re-calculation runs the button is its own loading indicator',
+  check('35j2 while a re-calculation runs the button is its own loading indicator, with the wait hint',
     (() => {
       setPilotRecalcRunning(true);
       renderPilot();
       const loading = els.pilotRecalc.disabled === true &&
-                      countByClass(els.pilotRecalc, 'pilot-spin') === 1;
+                      countByClass(els.pilotRecalc, 'pilot-spin') === 1 &&
+                      /takes a few minutes/.test(els.pilotRecalcHint.textContent);
       setPilotRecalcRunning(false);
       renderPilot();
       return loading && countByClass(els.pilotRecalc, 'pilot-spin') === 0 &&
-             els.pilotRecalc.textContent === 'Re-calculate';
-    })(), 'spinner + disabled while running, plain button after');
+             els.pilotRecalc.textContent === 'Re-calculate' &&
+             countByClass(els.pilotPanel, 'pilot-recalc-hint') === 0;
+    })(), 'spinner + disabled + few-minutes hint while running, plain button after');
   check('35k the advisory box carries the reading, and the boundary note is in the panel',
     (() => {
       const m2 = buildPilotModel();

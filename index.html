@@ -1112,6 +1112,8 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                   color: var(--ink); margin: 0; }
 .pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
 
+.pilot-recalc-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-0);
+                     color: var(--ink-3); }
 /* The re-calculate loading state: the button carries its own spinner. */
 .pilot-spin { width: 12px; height: 12px; border-radius: var(--radius-pill);
               border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
@@ -16489,6 +16491,15 @@ function renderPilotPanel(panel, m) {
   submit.addEventListener('click', pilotSubmitAction);
   actions.appendChild(submit);
   head.appendChild(actions);
+
+  /* The redraft is a full model turn — set the expectation the moment the
+     click lands, so the spinner never reads as a hang. */
+  if (PILOT_RECALC_RUNNING) {
+    const wait = pilotEl('p', 'pilot-recalc-hint',
+      'This usually takes a few minutes — the revised draft appears when it\'s done.');
+    wait.id = 'pilotRecalcHint';
+    head.appendChild(wait);
+  }
 
   /* Errors only — success feedback is the toast plus the Submitted button
      state (QA call 2026-08-08: the gate-status code line duplicated both). */

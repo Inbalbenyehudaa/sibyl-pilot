@@ -5767,6 +5767,15 @@ function renderPilotPanel(panel, m) {
   actions.appendChild(submit);
   head.appendChild(actions);
 
+  /* The redraft is a full model turn — set the expectation the moment the
+     click lands, so the spinner never reads as a hang. */
+  if (PILOT_RECALC_RUNNING) {
+    const wait = pilotEl('p', 'pilot-recalc-hint',
+      'This usually takes a few minutes — the revised draft appears when it\'s done.');
+    wait.id = 'pilotRecalcHint';
+    head.appendChild(wait);
+  }
+
   /* Errors only — success feedback is the toast plus the Submitted button
      state (QA call 2026-08-08: the gate-status code line duplicated both). */
   const msg = pilotEl('p', 'pilot-panel-msg', '');

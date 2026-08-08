@@ -823,6 +823,8 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                   color: var(--ink); margin: 0; }
 .pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
 
+.pilot-recalc-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-0);
+                     color: var(--ink-3); }
 /* The re-calculate loading state: the button carries its own spinner. */
 .pilot-spin { width: 12px; height: 12px; border-radius: var(--radius-pill);
               border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
