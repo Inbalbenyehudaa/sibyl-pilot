@@ -908,6 +908,40 @@ function check(name, cond, detail) {
     /Cody Danforth: suggested commit \$[\d,]+ vs own call \$39,000 -> delta [+-]\$[\d,]+/.test(g2t),
     g2w.perRep.map(p => p.rep.split(' ')[0] + ' ' + money(p.commit)).join(' · '));
 
+  /* 7x13 (§58) — the first Opus 5 run (2026-08-08) numbered its headings
+     with a MIDDLE DOT ("## 1 · failed_checks_banner") and merged label
+     pairs ("## 2 · suggested_forecast, suggested_best_case"). The peel knew
+     "1." and "1)" but not "1 ·", so every heading failed both matchers and
+     the run reported 4 of 13. Pinned with the live run's exact shapes; the
+     footers also now say one-label-per-line so the model stops doing it. */
+  const opusShape = [
+    '## 1 · failed_checks_banner', 'THREE ITEMS TO DISTRUST', '',
+    '## 2 · suggested_forecast, suggested_best_case',
+    '- **suggested_forecast (gross, sum of the five components): $676,158**',
+    '- **suggested_best_case: $53,800** — the best-case pool', '',
+    '## 3 · delta_from_last_week', '**+$176,158** — draft vs $500,000', '',
+    '## 4 · team_bottoms_up_total, drift',
+    '- **team_bottoms_up_total: $662,945** (Maya Delgado\'s team rollup)',
+    '- **drift: +$13,213** (draft above the roll-up)', '',
+    '## 5 · reconciliation_scorecard', '| Item | Figure |', '',
+    '## 6 · per_rep_forecast', 'Quoted verbatim.', '',
+    '## 7 · deals_challenge_list', '| Deal | Rep |', '',
+    '## 8 · chase_list', '- DL-0150 Halcyon Freight', '',
+    '## 9 · disagreement_register', 'Override record', '',
+    '## 10 · forecast_notes', 'Headline [M7.1].', '',
+    '## 11 · sibyl_reading', 'I endorse this walk-up.'
+  ].join('\n');
+  const opusScan = parseSibylFields(opusShape);
+  check('7x13 middle-dot numbered headings parse — the 2026-08-08 Opus 5 shape lands all 13 fields',
+    opusScan.parsed && opusScan.missing.length === 0 && opusScan.found.length === 13 &&
+    opusScan.values.forecast_notes === 'Headline [M7.1].' &&
+    opusScan.values.sibyl_reading === 'I endorse this walk-up.' &&
+    /\$676,158/.test(opusScan.values.suggested_forecast) &&
+    (js.match(/one label per line, never numbered, never merged with another/g) || [])
+      .length === 3,
+    opusScan.found.length + ' of 13 found · missing: ' +
+    (opusScan.missing.join(', ') || 'none') + ' · footer clause ×3');
+
   /* 7y — the 2026-08-06 live-run regressions, pinned. */
   check('7y1 Decide is scoped to the best-case pool — reviewer Commits are not re-litigated',
     /re-judge only the deals the reviewer marked Best Case/.test(SIBYL_PROMPT) &&
@@ -944,7 +978,9 @@ function check(name, cond, detail) {
     /send ONE corrected call now with the changed arguments/.test(toolResultMsg) &&
     /re-sending identical arguments is a stall/.test(toolResultMsg) &&
     !/must not be called again/.test(toolResultMsg) &&
-    toolResultMsg.trim().endsWith('quoting the figures above verbatim.') &&
+    /* §58 appended the label-format clause after the verbatim sentence — the
+       footer still ends on WRITE-list instructions, now the one-per-line rule. */
+    toolResultMsg.trim().endsWith('never wrapped in a Markdown heading.') &&
     /* The adopted-deals routing block ("call again to change them") renders
        only when deals were left unlisted — assert at source that it survives
        and that no lock-in phrasing exists anywhere to contradict it. */

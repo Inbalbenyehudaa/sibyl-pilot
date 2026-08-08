@@ -11008,7 +11008,14 @@ function sibylFieldOn(line) {
          .replace(/^#{1,6}\s*/, '')
          .replace(/^[-*+]\s+/, '')
          .replace(/^\*{1,3}/, m => { boldOpened = true; return ''; })
-         .replace(/^\d{1,2}\s*[.)]\s*/, '');
+         .replace(/^\d{1,2}\s*[.)]\s*/, '')
+         /* §58 — the first Opus 5 run numbered its headings with a MIDDLE DOT
+            ("## 1 · failed_checks_banner"), not "1." or "1)". The peel above
+            never fired, every heading failed both matchers, and 4 of 13
+            fields survived only as inline bold restatements. Same class of
+            miss the comment below calls a parser bug in a model-failure
+            costume — so the peel learns the separator. */
+         .replace(/^\d{1,2}\s*[·:—–]\s+/, '');
   } while (s !== prev);
 
   /* When the model opened bold *before* the label ("**drift:** value"), the
@@ -11079,12 +11086,13 @@ function sibylBoundaryNames(line) {
          .replace(/^#{1,6}\s*/, '')
          .replace(/^[-*+]\s+/, '')
          .replace(/^\*{1,3}/, '')
-         .replace(/^\d{1,2}\s*[.)]\s*/, '');
+         .replace(/^\d{1,2}\s*[.)]\s*/, '')
+         .replace(/^\d{1,2}\s*[·:—–]\s+/, '');   /* §58 — middle-dot numbering */
   } while (s !== prev);
   s = s.replace(/[\*\s]+$/, '');
   if (!s) return null;
   const parts = s.split(/\s*(?:[\/,&]|\band\b)\s*/)
-                 .map(x => x.replace(/[\*\s]/g, '').replace(/^\d{1,2}[.)]/, ''))
+                 .map(x => x.replace(/[\*\s]/g, '').replace(/^\d{1,2}[.)·:—–]/, ''))
                  .filter(Boolean);
   return (parts.length >= 2 && parts.every(p => SIBYL_FIELDS.indexOf(p) !== -1)) ? parts : null;
 }
@@ -12573,7 +12581,9 @@ const WALK_UP_DONE =
   'changed arguments, and the new result replaces this one. Otherwise there is nothing to ' +
   'verify by calling again: re-sending identical arguments is a stall and ends the run with ' +
   'no draft. Once the calls match your judgment, your next message is the WRITE list in full — ' +
-  'every labelled output field, quoting the figures above verbatim.';
+  'every labelled output field, quoting the figures above verbatim. Each label sits bare at ' +
+  'the start of its own line — one label per line, never numbered, never merged with another ' +
+  'label, never wrapped in a Markdown heading.';
 
 /* The SECOND computed walk-up is FINAL (§51): the single licensed correction
    has been used, so this footer replaces the invitation. Re-inviting a
@@ -12582,7 +12592,9 @@ const WALK_UP_DONE =
 const WALK_UP_FINAL =
   'THE WALK-UP ABOVE IS FINAL. The one corrected call this run licenses has been used — do not ' +
   'call compute_walk_up again. Your next message is the WRITE list in full — every labelled ' +
-  'output field, quoting the figures above verbatim.';
+  'output field, quoting the figures above verbatim. Each label sits bare at the start of its ' +
+  'own line — one label per line, never numbered, never merged with another label, never ' +
+  'wrapped in a Markdown heading.';
 
 /* §56 (F3) — a call arriving AFTER the final footer neither recomputes nor
    rejects: the standing result is echoed unchanged, so a late junk call can
@@ -12590,7 +12602,9 @@ const WALK_UP_FINAL =
 const WALK_UP_STANDS =
   'ALREADY FINAL — nothing was recomputed and nothing about this call is on the record. The ' +
   'standing walk-up is repeated below, unchanged. Your next message is the WRITE list in ' +
-  'full — every labelled output field, quoting its figures verbatim.';
+  'full — every labelled output field, quoting its figures verbatim. Each label sits bare at ' +
+  'the start of its own line — one label per line, never numbered, never merged with another ' +
+  'label, never wrapped in a Markdown heading.';
 
 const WALK_UP_TOOL = {
   name: 'compute_walk_up',
