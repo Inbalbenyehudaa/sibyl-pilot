@@ -351,6 +351,8 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
   'PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered: () => PILOT_ENTERED, ' +
   'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, pilotToggleReg, pilotNotesHeadline, ' +
+  'pilotSubmitAction, pilotRecalcAction, ' +
+  'setPilotRecalcRunning: (v) => { PILOT_RECALC_RUNNING = !!v; }, ' +
   'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
@@ -384,7 +386,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
         PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered, setPilotEntered, pilotToggleReg,
-        pilotNotesHeadline,
+        pilotNotesHeadline, pilotSubmitAction, pilotRecalcAction, setPilotRecalcRunning,
         pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
@@ -3555,17 +3557,32 @@ function check(name, cond, detail) {
   const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
   openGate(p35entry, 'harness draft', 'draft');
   renderPilot();
-  check('35j with the gate open Submit arms; approving flips it to Submitted',
+  check('35j Submit records through the gate, flips to Submitted, and toasts the numbers',
     (() => {
       if (els.pilotSubmit.disabled !== false) return false;
-      const res = gateApprove();
-      if (!res.ok) return false;
-      renderPilot();
+      const res = pilotSubmitAction();
+      if (!res || !res.ok) return false;
+      const toastTitles = textsByClass(els.pilotToasts, 't');
       return els.pilotSubmit.disabled === true &&
              els.pilotSubmit.textContent === 'Submitted' &&
-             /APPROVED/.test(els.pilotPanelMsg.textContent);
+             /APPROVED/.test(els.pilotPanelMsg.textContent) &&
+             toastTitles.some(x => x === 'Forecast submitted to your VP') &&
+             textsByClass(els.pilotToasts, 'd')
+               .some(x => /Commit \$.*Best case \$.*decisions log/.test(x));
     })(),
-    els.pilotSubmit.textContent + ' · ' + els.pilotPanelMsg.textContent);
+    els.pilotSubmit.textContent + ' · toast: ' +
+    textsByClass(els.pilotToasts, 't').join(' | '));
+  check('35j2 while a re-calculation runs the button is its own loading indicator',
+    (() => {
+      setPilotRecalcRunning(true);
+      renderPilot();
+      const loading = els.pilotRecalc.disabled === true &&
+                      countByClass(els.pilotRecalc, 'pilot-spin') === 1;
+      setPilotRecalcRunning(false);
+      renderPilot();
+      return loading && countByClass(els.pilotRecalc, 'pilot-spin') === 0 &&
+             els.pilotRecalc.textContent === 'Re-calculate';
+    })(), 'spinner + disabled while running, plain button after');
   check('35k the advisory box carries the reading, and the boundary note is in the panel',
     (() => {
       const m2 = buildPilotModel();

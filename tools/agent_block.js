@@ -5635,6 +5635,60 @@ function pilotAutoGrow(el) {
   el.style.height = (el.scrollHeight || 0) + 'px';
 }
 
+/* ---- Inc 7 QA: the panel's two actions, extracted so the buttons stay
+   thin and the harness can drive them. ------------------------------- */
+
+let PILOT_RECALC_RUNNING = false;
+
+function pilotSubmitAction() {
+  const m = buildPilotModel();
+  if (!m) return null;
+  const res = gateApprove();
+  if (!res.ok) {
+    const msg = document.getElementById('pilotPanelMsg');
+    if (msg) { msg.className = 'pilot-panel-msg warn'; msg.textContent = res.error; }
+    return res;
+  }
+  renderGate();
+  renderRunLog();
+  renderDealGate();
+  pilotToast('Forecast submitted to your VP',
+    'Commit ' + moneyShort(m.numbers.suggestedForecast) + ' · Best case ' +
+    moneyShort(m.numbers.bestCaseTotal) + ' · logged to the decisions log');
+  return res;
+}
+
+async function pilotRecalcAction() {
+  if (PILOT_RECALC_RUNNING || !recalcReady()) return null;
+  PILOT_RECALC_RUNNING = true;
+  renderPilot();
+  let res;
+  try {
+    res = await runMayaRecalc();
+  } finally {
+    /* The flag drops only AFTER runMayaRecalc's own repaints — the loading
+       button survives every intermediate render, and the final paint below
+       shows the fresh numbers. */
+    PILOT_RECALC_RUNNING = false;
+  }
+  renderDealGate();
+  if (res && res.ok) {
+    const m2 = buildPilotModel();
+    pilotToast('Forecast re-calculated on your calls',
+      m2 ? 'Commit ' + moneyShort(m2.numbers.suggestedForecast) + ' · Best case ' +
+           moneyShort(m2.numbers.bestCaseTotal) + ' · the revised draft is the draft of record'
+         : 'The revised draft is the draft of record');
+  } else if (res && res.error) {
+    const msg = document.getElementById('pilotPanelMsg');
+    if (msg) {
+      msg.className = 'pilot-panel-msg warn';
+      msg.textContent = 'Re-calculation failed — ' + res.error +
+        ' Your calls are still recorded.';
+    }
+  }
+  return res;
+}
+
 function renderPilotPanel(panel, m) {
   panel.textContent = '';
   const card = pilotEl('div', 'pilot-card');
@@ -5671,31 +5725,27 @@ function renderPilotPanel(panel, m) {
   }
 
   const actions = pilotEl('div', 'pilot-panel-actions');
-  const recalc = pilotEl('button', 'btn', 'Re-calculate');
+  const recalc = pilotEl('button', 'btn', '');
   recalc.id = 'pilotRecalc';
   recalc.type = 'button';
-  recalc.disabled = !pendingCount || !recalcReady();
-  recalc.addEventListener('click', function () {
+  if (PILOT_RECALC_RUNNING) {
+    /* The loading state the user asked for: the button IS the indicator —
+       spinner + label until the revised numbers are actually painted. */
+    recalc.appendChild(pilotEl('span', 'pilot-spin', ''));
+    recalc.appendChild(pilotEl('span', '', 'Re-calculating…'));
     recalc.disabled = true;
-    runMayaRecalc();
-  });
+  } else {
+    recalc.textContent = 'Re-calculate';
+    recalc.disabled = !pendingCount || !recalcReady();
+  }
+  recalc.addEventListener('click', pilotRecalcAction);
   actions.appendChild(recalc);
 
   const submit = pilotEl('button', 'btn primary', m.gate.complete ? 'Submitted' : 'Submit');
   submit.id = 'pilotSubmit';
   submit.type = 'button';
   submit.disabled = m.gate.complete || !m.gate.open;
-  submit.addEventListener('click', function () {
-    const res = gateApprove();
-    if (!res.ok) {
-      const msg = document.getElementById('pilotPanelMsg');
-      if (msg) { msg.className = 'pilot-panel-msg warn'; msg.textContent = res.error; }
-      return;
-    }
-    renderGate();
-    renderRunLog();
-    renderDealGate();
-  });
+  submit.addEventListener('click', pilotSubmitAction);
   actions.appendChild(submit);
   head.appendChild(actions);
 
@@ -6258,8 +6308,18 @@ function pilotToast(title, desc) {
   const host = document.getElementById('pilotToasts');
   if (!host) return;
   const t = pilotEl('div', 'pilot-toast');
-  t.appendChild(pilotEl('p', 't', title));
-  if (desc) t.appendChild(pilotEl('p', 'd', desc));
+  /* The check-circle mark (QA'd reference) — ink disc, page-color check;
+     inline SVG, token colors via CSS. */
+  const ic = pilotEl('span', 'ic', '');
+  ic.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="11" fill="currentColor"></circle>' +
+    '<path d="m7.5 12.5 3 3 6-6.5" fill="none" stroke-width="2.2"' +
+    ' stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  t.appendChild(ic);
+  const bd = pilotEl('div', 'bd');
+  bd.appendChild(pilotEl('p', 't', title));
+  if (desc) bd.appendChild(pilotEl('p', 'd', desc));
+  t.appendChild(bd);
   const drop = function () { if (t.parentNode) t.parentNode.removeChild(t); };
   t.addEventListener('click', drop);
   host.appendChild(t);

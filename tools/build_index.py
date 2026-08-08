@@ -815,9 +815,21 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                opacity: 0; transform: translateY(8px);
                transition: opacity .18s ease, transform .18s ease; }
 .pilot-toast.show { opacity: 1; transform: translateY(0); }
+.pilot-toast { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.pilot-toast .ic { flex: none; color: var(--ink); margin-top: 1px; display: inline-flex; }
+.pilot-toast .ic path { stroke: var(--bg-raise); }
+.pilot-toast .bd { min-width: 0; }
 .pilot-toast .t { font-size: var(--fs-0); font-weight: var(--w-strong);
                   color: var(--ink); margin: 0; }
 .pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
+
+/* The re-calculate loading state: the button carries its own spinner. */
+.pilot-spin { width: 12px; height: 12px; border-radius: var(--radius-pill);
+              border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+              border-top-color: currentColor; display: inline-block;
+              margin-right: var(--sp-2); vertical-align: -2px;
+              animation: pilotSpin .7s linear infinite; }
+@keyframes pilotSpin { to { transform: rotate(360deg); } }
 
 /* Inc 7 — pitch polish. Keyboard focus is visible on every pilot control
    (the demo may be driven by keyboard); phone-width type steps down one
@@ -837,6 +849,7 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .pilot-drawer, .pilot-chev { transition: none; }
+  .pilot-spin { animation: none; }
 }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
