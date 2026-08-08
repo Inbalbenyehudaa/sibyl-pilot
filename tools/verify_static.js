@@ -350,7 +350,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
   'PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered: () => PILOT_ENTERED, ' +
-  'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, pilotToggleReg, ' +
+  'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, pilotToggleReg, pilotNotesHeadline, ' +
   'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
@@ -384,6 +384,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
         PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered, setPilotEntered, pilotToggleReg,
+        pilotNotesHeadline,
         pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
@@ -3539,6 +3540,14 @@ function check(name, cond, detail) {
     })(),
     countByClass(els.pilotChase, 'pilot-chase-row') + ' rows · links: ' +
     textsByClass(els.pilotChase, 'pilot-chase-link').join(' | '));
+  check('35y the entry subtitle takes the first SUBSTANTIVE notes line, never a bare section label',
+    pilotNotesHeadline('**What is in**\nClosed Won $445,679 stands as the floor.') ===
+      'Closed Won $445,679 stands as the floor.' &&
+    pilotNotesHeadline('**Drift**: draft runs $51K above the rollup\nmore') ===
+      'Drift: draft runs $51K above the rollup' &&
+    pilotNotesHeadline('plain first line\nsecond') === 'plain first line' &&
+    pilotNotesHeadline('') === '',
+    'labels skipped, bold stripped, plain lines pass through');
   check('35w the chase list is the LAST section on the page',
     els.pilotSections.children.length === 3 &&
     els.pilotSections.children[2].id === 'pilotChase',

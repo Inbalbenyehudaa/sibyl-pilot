@@ -6153,6 +6153,20 @@ function pilotEnterReview() {
   if (!buildPilotModel()) return;
   PILOT_ENTERED = true;
   renderPilot();
+  /* The dashboard opens at the hero — the drift story is the first beat. */
+  if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
+}
+
+/* The entry card's subtitle: the first line of the forecast notes that SAYS
+   something — a line that is only a bold section label ("**What is in**")
+   names the notes' structure, not the week's story. Bold markers stripped;
+   these cells render as plain text. */
+function pilotNotesHeadline(text) {
+  return String(text || '').split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter(s => !/^\*\*[^*]+\*\*\s*[:—–-]?\s*$/.test(s))
+    .map(plainValue)[0] || '';
 }
 
 function renderPilotEntry(host, m) {
@@ -6178,10 +6192,10 @@ function renderPilotEntry(host, m) {
     m ? 'Your weekly forecast draft is ready, Maya.'
       : 'Good morning, Maya — Friday\'s draft is one click away.'));
   if (m) {
-    /* The user-requested subtitle: the forecast_notes headline, verbatim. */
-    const first = String(m.prose.forecastNotes || '').split('\n')
-      .map(s => s.trim()).filter(Boolean)[0];
-    if (first) body.appendChild(pilotEl('p', 'pilot-entry-sub', plainValue(first)));
+    /* The user-requested subtitle: the forecast_notes headline — the first
+       line that says something, not a bare section label. */
+    const first = pilotNotesHeadline(m.prose.forecastNotes);
+    if (first) body.appendChild(pilotEl('p', 'pilot-entry-sub', first));
     if (m.meta.restored) {
       body.appendChild(pilotEl('p', 'hint', 'Restored from the pilot decisions log.'));
     }

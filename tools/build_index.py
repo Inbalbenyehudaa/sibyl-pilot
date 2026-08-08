@@ -819,6 +819,26 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                   color: var(--ink); margin: 0; }
 .pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
 
+/* Inc 7 — pitch polish. Keyboard focus is visible on every pilot control
+   (the demo may be driven by keyboard); phone-width type steps down one
+   display tier; motion respects the OS setting. */
+.tab:focus-visible, .btn:focus-visible, .pilot-rep-head:focus-visible,
+.pilot-reg-head:focus-visible, .pilot-edit-link:focus-visible,
+.pilot-chase-link:focus-visible, .pilot-notes-view:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .pilot-wrap { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .pilot-h1 { font-size: var(--fs-display-lg); letter-spacing: var(--track-display-lg);
+              line-height: 1.1; }
+  .pilot-stat .n { font-size: var(--fs-display-md); letter-spacing: var(--track-display-md); }
+  .pilot-stats { gap: var(--sp-4) var(--sp-5); }
+  .pilot-dark-card .n { font-size: var(--fs-display-lg);
+                        letter-spacing: var(--track-display-lg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pilot-drawer, .pilot-chev { transition: none; }
+}
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
