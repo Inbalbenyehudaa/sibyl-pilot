@@ -3309,8 +3309,10 @@ function check(name, cond, detail) {
     band: { code: 'OK', tone: 'ok' },
     scan: { parsed: true, found: [], missing: [],
             values: { forecast_notes: 'notes35', sibyl_reading: 'read35',
-                      chase_list: '- **DL-0150 Halcyon Freight** — no meeting brief on file; ' +
-                                  'ask for the EB readout [M5.3]\n' +
+                      chase_list: '- **DL-0150 Halcyon Freight - New Business** (Harper Ramsey) ' +
+                                  'no meeting brief on file [M5.3]\n' +
+                                  '- DL-0041 Nimbus.io - Ramp Seats — missing week-over-week stage history\n' +
+                                  '- Harper Ramsey - confirm stage dates for two Discovery deals\n' +
                                   'Brief the team on stale stage data before Friday' } },
     refusal: { refused: false }, readings: p35readings, walk: p35walk,
     text: '', decisions: p35decisions });
@@ -3524,15 +3526,19 @@ function check(name, cond, detail) {
       return open && countByClass(els.pilotSections, 'pilot-reg-row') === 0;
     })(),
     'collapsed by default · 33% · "2 Maya wins · 4 draft wins · 1 open" · 7 rows when open, Draft→Sibyl');
-  check('35v the chase list strips ** from the who, links open deals, keeps unsplit lines whole',
+  check('35v the chase list splits without a separator (deal-anchored), links ONLY explicit open deals',
     (() => {
       const links = textsByClass(els.pilotChase, 'pilot-chase-link');
-      return countByClass(els.pilotChase, 'pilot-chase-row') === 2 &&
-             links.length === 1 && links[0] === 'DL-0150 Halcyon Freight' &&
-             links[0].indexOf('*') === -1;
+      const names = textsByClass(els.pilotChase, 'pilot-deal-name');
+      return countByClass(els.pilotChase, 'pilot-chase-row') === 4 &&
+             links.length === 2 &&
+             links[0] === 'DL-0150 Halcyon Freight - New Business (Harper Ramsey)' &&
+             links[0].indexOf('*') === -1 &&
+             links[1].indexOf('DL-0041') !== -1 &&
+             names.join('|') === 'Harper Ramsey';   /* rep line splits, no link */
     })(),
-    countByClass(els.pilotChase, 'pilot-chase-row') + ' rows · link "' +
-    (textsByClass(els.pilotChase, 'pilot-chase-link')[0] || '(none)') + '"');
+    countByClass(els.pilotChase, 'pilot-chase-row') + ' rows · links: ' +
+    textsByClass(els.pilotChase, 'pilot-chase-link').join(' | '));
   check('35w the chase list is the LAST section on the page',
     els.pilotSections.children.length === 3 &&
     els.pilotSections.children[2].id === 'pilotChase',

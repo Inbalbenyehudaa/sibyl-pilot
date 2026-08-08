@@ -6018,21 +6018,65 @@ function renderPilotRecon(host, m) {
    becomes two cells; anything else falls back to one full-width cell. No
    line is dropped, reworded, or summarized. */
 
-function pilotChaseRows(text) {
+/* Which of this run's open deals does this line explicitly name? By ID
+   first; failing that, by the deal's exact name spelled out. An ID that
+   names a deal NOT in the run identifies nothing — no link. */
+function pilotDealInText(s, deals) {
+  const idm = /DL-\d{4}/.exec(s);
+  if (idm) return deals.filter(d => d.id === idm[0])[0] || null;
+  return deals.filter(d => s.indexOf(plainValue(d.name)) !== -1)[0] || null;
+}
+
+/* Split each chase line into who / what. The model does not promise a
+   separator, so the parse anchors on what the run actually knows:
+   1. an explicit "who — what" (em/en dash) or "who: what" split;
+   2. otherwise, if the line names an open deal, the who runs through the
+      deal's name (or ID) plus an optional "(rep)" parenthetical, and the
+      rest is the what;
+   3. otherwise a short plain-hyphen lead ("Rep - do X");
+   4. otherwise the line stays whole — never dropped or reworded.
+   Bold markers are stripped up front: these cells render as plain text. */
+function pilotChaseRows(text, deals) {
   return String(text || '').split('\n')
     .map(s => s.replace(/^\s*[-*+]\s*/, '').trim())
     .filter(Boolean)
     .map(line => {
-      const mm = /^(.{2,68}?)\s+[—–]\s+(.+)$/.exec(line);
-      /* The who cell renders as plain text (or a link), so bold markers
-         would show as literal asterisks — strip them here. */
-      return mm ? { who: plainValue(mm[1]).trim(), what: mm[2] }
-                : { who: null, what: line };
+      const clean = plainValue(line).trim();
+      const deal = pilotDealInText(clean, deals || []);
+      const dealIn = s => deal &&
+        (s.indexOf(deal.id) !== -1 || s.indexOf(plainValue(deal.name)) !== -1)
+          ? deal.id : null;
+
+      const mm = /^(.{2,80}?)\s+[—–]\s+(.+)$/.exec(clean) ||
+                 /^(.{2,80}?):\s+(.+)$/.exec(clean);
+      if (mm) {
+        return { who: mm[1].trim(), what: mm[2].trim(), dealId: dealIn(mm[1]) };
+      }
+
+      if (deal) {
+        const name = plainValue(deal.name);
+        let cut = clean.indexOf(name) !== -1
+          ? clean.indexOf(name) + name.length
+          : (clean.indexOf(deal.id) !== -1 ? clean.indexOf(deal.id) + deal.id.length : -1);
+        if (cut > 0) {
+          const par = /^\s*\([^)]*\)/.exec(clean.slice(cut));
+          if (par) cut += par[0].length;
+          const who = clean.slice(0, cut).trim();
+          const what = clean.slice(cut).replace(/^\s*[—–:;,.-]\s*/, '').trim();
+          if (who && what) return { who: who, what: what, dealId: deal.id };
+        }
+      }
+
+      const hm = /^(.{2,40}?)\s+-\s+(.+)$/.exec(clean);
+      if (hm && !/DL-\d{4}/.test(hm[2].slice(0, 30))) {
+        return { who: hm[1].trim(), what: hm[2].trim(), dealId: dealIn(hm[1]) };
+      }
+      return { who: null, what: clean, dealId: null };
     });
 }
 
 function renderPilotChase(host, m) {
-  const rows = pilotChaseRows(m.prose.chaseList);
+  const rows = pilotChaseRows(m.prose.chaseList, m.deals);
   if (!rows.length) return;
   const section = pilotEl('section', 'pilot-section');
   section.id = 'pilotChase';
@@ -6053,27 +6097,23 @@ function renderPilotChase(host, m) {
     if (row.who === null) {
       const td = pilotEl('td', '');
       td.setAttribute('colspan', '2');
-      pilotInline(td, row.what);
+      td.textContent = row.what;
       tr.appendChild(td);
     } else {
       const whoTd = pilotEl('td', '');
-      /* A who that names one of this run's open deals links straight into
-         the same drawer the per-deal review opens. */
-      const idm = /DL-\d{4}/.exec(row.who);
-      const dealId = idm && m.deals.some(d => d.id === idm[0]) ? idm[0] : null;
-      if (dealId) {
+      /* A who that explicitly names one of this run's open deals links
+         straight into the same drawer the per-deal review opens. */
+      if (row.dealId) {
         const link = pilotEl('button', 'pilot-chase-link', row.who);
         link.type = 'button';
-        link.setAttribute('data-deal', dealId);
-        link.addEventListener('click', function () { pilotOpenDrawer(dealId); });
+        link.setAttribute('data-deal', row.dealId);
+        link.addEventListener('click', function () { pilotOpenDrawer(row.dealId); });
         whoTd.appendChild(link);
       } else {
         whoTd.appendChild(pilotEl('span', 'pilot-deal-name', row.who));
       }
       tr.appendChild(whoTd);
-      const whatTd = pilotEl('td', 'mute');
-      pilotInline(whatTd, row.what);
-      tr.appendChild(whatTd);
+      tr.appendChild(pilotEl('td', 'mute', row.what));
     }
     tbody.appendChild(tr);
   });
