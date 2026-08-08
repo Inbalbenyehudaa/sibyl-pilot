@@ -4375,18 +4375,23 @@ const KNOWN_LIMITS = [
       'topdown_metrics.csv, decisions_log.csv, deal_signals.md). A missing run-critical file is ' +
       'a hard stop and a renamed column is a failed check — by design, not a gap. Synthetic ' +
       'data only.' },
-  { head: 'A follow-up cannot recompute the number.',
-    body: 'Maya\'s reply runs on the same conversation without the calculator. A reply that ' +
-      'needs a new walk-up is reported as unsupported — re-run the week instead of trusting a ' +
-      'stale figure.' },
-  { head: 'Maya\'s per-deal edits are recorded, not applied.',
-    body: 'Approving or re-categorising a deal reading writes to the run log, but the walk-up ' +
-      'still prices Sibyl\'s calls. Applying her category (precedence Maya > Sibyl > reviewer > ' +
-      'rep) is the planned stretch loop.' },
-  { head: 'One output figure is the model\'s own labelled arithmetic.',
-    body: 'The calculator does not return the best-case pool total, so suggested_best_case is ' +
-      'Sibyl\'s sum of calculator-quoted per-deal amounts, labelled as its own calculation ' +
-      'rather than a quoted figure.' }
+  /* Two limits retired by the pilot build, on the record: "a follow-up
+     cannot recompute the number" fell to the recalc loop (P3.3 — Maya's
+     calls re-enter computeWalkUp and the revision becomes the draft of
+     record), and "per-deal edits are recorded, not applied" fell with it
+     (P3.2 precedence Maya > Sibyl > reviewer > rep). A third fell to §57:
+     suggested_best_case is now a calculator quote (walkUpText prints the
+     pool total), not the model's own sum. */
+  { head: 'The manager brings her own API key, and the browser talks to the model directly.',
+    body: 'The Anthropic key lives in this browser\'s localStorage and every call goes ' +
+      'straight from the page — no server sits between the manager and the model. Right for ' +
+      'a pilot one manager runs herself; a team rollout needs a backend that holds the key ' +
+      'and decides who may run.' },
+  { head: 'The record learns only when outcomes land in the decisions log.',
+    body: 'The override win rate and the disagreement register are read from ' +
+      'decisions_log.csv, and a dispute is scored only when the deal\'s outcome is recorded ' +
+      'there. Nothing watches the CRM for closes — the feedback loop moves exactly as fast ' +
+      'as the log is updated.' }
 ];
 
 function renderLimitsPanel() {

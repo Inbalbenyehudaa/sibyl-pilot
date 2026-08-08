@@ -3185,12 +3185,17 @@ function check(name, cond, detail) {
     limItems.length >= 3 && limItems.length <= 5 &&
     limItems.every(li => li.children.length && /\.$/.test(li.children[0].textContent.trim())),
     limItems.length + ' limits');
-  check('32c each limit is specific — snapshot, file names, the unsupported paths, the labelled sum',
+  check('32c each limit is specific — and the three the pilot retired are GONE',
     /week 13 of Q2-FY2027/.test(limText) && /deals_last_week\.csv/.test(limText) &&
     /English only/.test(limText) && /hard stop/.test(limText) &&
-    /re-run the week/.test(limText) && /recorded, not applied/.test(limText) &&
-    /suggested_best_case/.test(limText) && /Synthetic\s+data only/.test(limText),
-    'scope, format, follow-up, gate, arithmetic — all named');
+    /Synthetic\s+data only/.test(limText) &&
+    /localStorage/.test(limText) && /no server sits between/.test(limText) &&
+    /decisions_log\.csv/.test(limText) && /outcome/.test(limText) &&
+    /* retired by the pilot: recalc applies Maya's calls; suggested_best_case
+       is a calculator quote since §57 */
+    !/re-run the week/.test(limText) && !/recorded, not applied/.test(limText) &&
+    !/suggested_best_case/.test(limText),
+    'scope, format, key custody, outcome loop — named; retired limits absent');
   check('32d no marketing language — limits are scope decisions, not a pitch',
     !/great|powerful|seamless|robust|cutting.edge|state.of.the.art|simply|just works/i.test(limText),
     'plain statements only');
