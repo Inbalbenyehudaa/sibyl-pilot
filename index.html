@@ -935,6 +935,35 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                      color: var(--warn); }
 .pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
+/* Inc 5 — reconciliation, the record, the chase list. The dark card is
+   the inverse surface: ink for ground, page color for figure — tokens
+   only, so every skin keeps its own contrast. */
+.pilot-recon-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+                    gap: var(--sp-4); align-items: stretch;
+                    margin-bottom: var(--sp-4); }
+@media (max-width: 1100px) { .pilot-recon-grid { grid-template-columns: 1fr; } }
+.pilot-recon-card { padding: var(--sp-5); }
+.pilot-recon-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-7);
+                     align-items: flex-end; }
+.pilot-recon-cap { margin: var(--sp-4) 0 0; font-size: var(--fs-0);
+                   color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pilot-dark-card { background: var(--ink); color: var(--bg);
+                   border-radius: var(--radius);
+                   box-shadow: var(--shadow-2, var(--shadow));
+                   padding: var(--sp-5); display: flex; flex-direction: column;
+                   justify-content: center; }
+.pilot-dark-card .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                      letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                      color: color-mix(in srgb, var(--bg) 72%, transparent);
+                      margin: 0; }
+.pilot-dark-card .n { font-size: var(--fs-display-xl); font-weight: var(--w-display);
+                      letter-spacing: var(--track-display-xl);
+                      font-variant-numeric: tabular-nums;
+                      margin: var(--sp-1) 0 0; }
+.pilot-dark-card .d { font-size: var(--fs-0); line-height: 1.5;
+                      color: color-mix(in srgb, var(--bg) 80%, transparent);
+                      margin: var(--sp-2) 0 0; }
+
 /* Inc 4 — the deal drawer. The row is the door; the drawer slides over
    from the right and scrolls on its own. Token-only, no new colors. */
 .pilot-deal-row { cursor: pointer; }
@@ -942,10 +971,10 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-scrim { position: fixed; inset: 0; z-index: 40;
                       background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .pilot-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
-                width: min(480px, 92vw); background: var(--bg-raise);
+                width: min(672px, 94vw); background: var(--bg-raise);
                 border-left: var(--border-w) solid var(--line);
                 box-shadow: var(--shadow-2, var(--shadow));
-                padding: var(--sp-5) var(--sp-5) var(--sp-7);
+                padding: var(--sp-5) var(--sp-6) var(--sp-7);
                 overflow-y: auto; transform: translateX(102%);
                 transition: transform .18s ease; }
 .pilot-drawer.open { transform: translateX(0); }
@@ -959,18 +988,25 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-chiprow { display: flex; align-items: center; gap: var(--sp-3);
                         margin-top: var(--sp-3); }
 .pilot-drawer-fields { margin-top: var(--sp-5); }
-.pilot-field { display: grid; grid-template-columns: 150px minmax(0, 1fr);
-               gap: var(--sp-3); padding: var(--sp-2) 0;
+.pilot-field { display: grid; grid-template-columns: 170px minmax(0, 1fr);
+               gap: var(--sp-4); padding: var(--sp-3) 0;
                border-top: var(--border-w) solid var(--line); }
-.pilot-field .k { font-family: var(--font-mono); font-size: var(--fs-micro);
-                  color: var(--ink-3); margin: 0; overflow-wrap: anywhere; }
-.pilot-field .v { font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5;
+.pilot-field .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                  color: var(--ink-3); margin: 0; padding-top: 3px; }
+.pilot-field .v { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.5;
                   margin: 0; }
 .pilot-field.absent .v { color: var(--ink-3); }
 .pilot-ev { margin: 0 0 var(--sp-1); padding-left: var(--sp-3); position: relative;
             font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5; }
 .pilot-ev::before { content: '·'; position: absolute; left: 0; color: var(--accent); }
-.pilot-drawer-call { margin-top: var(--sp-5); }
+/* The decision area is separated from the evidence above it, and its label
+   is the loud one — the human gate is the point of the drawer. */
+.pilot-drawer-call { margin-top: var(--sp-5); border-top: var(--border-w) solid var(--line);
+                     padding-top: var(--sp-5); }
+.pilot-call-label { font-size: var(--fs-caption); font-weight: var(--w-strong);
+                    letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                    color: var(--accent-deep, var(--accent)); margin: 0 0 var(--sp-3); }
 .pilot-drawer-status { font-size: var(--fs-0); color: var(--ink); margin: 0 0 var(--sp-2); }
 .pilot-drawer-status.mute { color: var(--ink-3); }
 .pilot-drawer-warn { font-size: var(--fs-0); color: var(--warn); }
@@ -984,6 +1020,22 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-reason:focus { outline: none; border-color: var(--accent); }
 .pilot-drawer-chk { display: inline-flex; align-items: center; gap: var(--sp-1);
                     font-size: var(--fs-0); color: var(--ink-2); }
+
+/* Toasts — bottom-right, the Lovable/sonner shape: white card, strong title,
+   muted line, slide-and-fade, click or 4s to dismiss. */
+#pilotToasts { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 60;
+               display: flex; flex-direction: column; gap: var(--sp-2);
+               align-items: flex-end; pointer-events: none; }
+.pilot-toast { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+               border-radius: var(--radius-md); box-shadow: var(--shadow-2, var(--shadow));
+               padding: var(--sp-4) var(--sp-5); width: 356px; max-width: 92vw;
+               cursor: pointer; pointer-events: auto;
+               opacity: 0; transform: translateY(8px);
+               transition: opacity .18s ease, transform .18s ease; }
+.pilot-toast.show { opacity: 1; transform: translateY(0); }
+.pilot-toast .t { font-size: var(--fs-0); font-weight: var(--w-strong);
+                  color: var(--ink); margin: 0; }
+.pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
@@ -1216,6 +1268,9 @@ body { overflow-x: hidden; }
   <div id="pilotDrawerScrim" class="pilot-drawer-scrim" style="display:none"></div>
   <aside id="pilotDrawer" class="pilot-drawer" aria-label="Deal review"></aside>
 </div>
+
+<!-- P4 Inc 4 QA — toast notifications (bottom right). -->
+<div id="pilotToasts"></div>
 
 <div class="worldcheck" id="worldcheckRoot">
   <details>
@@ -11936,6 +11991,19 @@ function decisionStats() {
   const openDisputes = acts.filter(r => r['Disagreement Status'] === 'Open')
     .map(r => ({ id: r['Deal ID'], name: r['Deal Name'], rep: r['Rep'],
                  draft: r['Draft Category'], maya: r['Final Category'], action: r['Maya Action'] }));
+  /* P4 Inc 5 (additive) — the full disagreement register, row by row: every
+     deal_action where draft and manager actually disagreed (Resolved or
+     Open). Agreement rows are not disagreements and stay out. Same reader,
+     same filters as the counts above — the pilot surface renders THIS, so
+     the table and the totals cannot drift apart. */
+  const register = acts
+    .filter(r => r['Disagreement Status'] === 'Resolved' || r['Disagreement Status'] === 'Open')
+    .map(r => ({ id: r['Deal ID'], name: r['Deal Name'], rep: r['Rep'],
+                 amount: num(r['Amount']),
+                 draft: r['Draft Category'], maya: r['Final Category'],
+                 action: r['Maya Action'], direction: r['Direction'],
+                 status: r['Disagreement Status'], resolvedWeek: r['Resolved Week'],
+                 winner: r['Winner'], outcome: r['Outcome'] }));
   const weekly = DB['decisions_log.csv'].rows
     .filter(r => r['Record Type'] === 'weekly_summary')
     .map(r => ({ week: r['Week Ending'], note: r['Note'] }));
@@ -11963,7 +12031,8 @@ function decisionStats() {
 
   return { week: wk, accuracy: accuracy, record: {
              resolved: resolved.length, draftWins: draftWins, mayaWins: mayaWins,
-             byDirection: byDirection, openDisputes: openDisputes, weekly: weekly },
+             byDirection: byDirection, openDisputes: openDisputes, weekly: weekly,
+             register: register },
            wow: wow };
 }
 
@@ -16030,6 +16099,19 @@ function buildPilotModel() {
   reps.sort((a, b) => b.commit - a.commit || (a.name < b.name ? -1 : 1));
 
   const rec = stats.record;
+  /* Inc 5 (additive, still v1) — last week on the record: draft commit vs
+     what Maya submitted, from the decisions_log weekly_summary row. Seed
+     data written by code, matched by pattern — NOT model prose; when no row
+     matches, the tiles simply do not render. */
+  let reconciliation = null;
+  for (let i = rec.weekly.length - 1; i >= 0; i--) {
+    const mm = /Draft commit (\d+) vs submitted (\d+)/.exec(rec.weekly[i].note || '');
+    if (mm) {
+      reconciliation = { week: rec.weekly[i].week,
+                         draft: num(mm[1]), submitted: num(mm[2]) };
+      break;
+    }
+  }
   const challenged = deals.filter(d => d.challenged);
   return {
     meta: {
@@ -16072,7 +16154,8 @@ function buildPilotModel() {
     record: {
       resolved: rec.resolved, draftWins: rec.draftWins, mayaWins: rec.mayaWins,
       winRatePct: rec.resolved ? Math.round(100 * rec.mayaWins / rec.resolved) : null,
-      openDisputes: rec.openDisputes, weekly: rec.weekly
+      openDisputes: rec.openDisputes, weekly: rec.weekly,
+      register: rec.register || [], reconciliation: reconciliation
     },
     gate: { open: !!GATE, complete: gateComplete(), status: gateStatus() }
   };
@@ -16392,9 +16475,167 @@ function renderPilotDeals(host, m) {
   host.appendChild(section);
 }
 
+/* ---- section 02: reconciliation — last week, on the record ----------
+   Draft-vs-submitted tiles (no "Actual" tile, no narrative lines — every
+   figure is a log row), the full disagreement register, and the override
+   win-rate card. All of it from decisionStats() over decisions_log.csv;
+   nothing here is the model narrating its own track record. */
+
+function renderPilotRecon(host, m) {
+  const r = m.record;
+  const section = pilotEl('section', 'pilot-section');
+  pilotSectionTitle(section, '02 · Reconciliation', 'Last week, on the record',
+    'What the draft said, what was submitted, and who turned out right — ' +
+    'straight from the decisions log.');
+
+  const grid = pilotEl('div', 'pilot-recon-grid');
+
+  /* draft vs submitted — only when the log carries the weekly summary */
+  const tilesCard = pilotEl('div', 'pilot-card pilot-recon-card');
+  if (r.reconciliation) {
+    const rc = r.reconciliation;
+    const tiles = pilotEl('div', 'pilot-recon-tiles');
+    [
+      { k: 'Draft commit', v: moneyShort(rc.draft), cls: '' },
+      { k: 'Maya submitted', v: moneyShort(rc.submitted), cls: ' accent' },
+      { k: 'Delta', v: pilotSigned(rc.submitted - rc.draft),
+        cls: rc.submitted - rc.draft < 0 ? ' neg' : ' pos' }
+    ].forEach(s => {
+      const st = pilotEl('div', 'pilot-stat');
+      st.appendChild(pilotEl('p', 'k', s.k));
+      st.appendChild(pilotEl('p', 'n' + s.cls, s.v));
+      tiles.appendChild(st);
+    });
+    tilesCard.appendChild(tiles);
+    tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
+      'Week ending ' + rc.week + ' · decisions_log.csv'));
+  } else {
+    tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
+      'No weekly summary on the log yet.'));
+  }
+  grid.appendChild(tilesCard);
+
+  /* the override win-rate card */
+  const dark = pilotEl('div', 'pilot-dark-card');
+  dark.id = 'pilotWinRate';
+  dark.appendChild(pilotEl('p', 'k', 'Override win rate'));
+  dark.appendChild(pilotEl('p', 'n',
+    r.winRatePct === null ? '—' : r.winRatePct + '%'));
+  dark.appendChild(pilotEl('p', 'd',
+    r.resolved + ' resolved disagreement' + (r.resolved === 1 ? '' : 's') +
+    ' · draft won ' + r.draftWins + ' · Maya won ' + r.mayaWins));
+  if (r.openDisputes.length) {
+    dark.appendChild(pilotEl('p', 'd',
+      r.openDisputes.length + ' still open — ' +
+      r.openDisputes.map(o => o.id + ' ' + o.name).join(', ')));
+  }
+  grid.appendChild(dark);
+  section.appendChild(grid);
+
+  /* the disagreement register, row by row */
+  if (r.register.length) {
+    const card = pilotEl('div', 'pilot-card');
+    const wrap = pilotEl('div', 'pilot-table-wrap');
+    const table = pilotEl('table', 'pilot-table');
+    const thead = pilotEl('thead', '');
+    const hr = pilotEl('tr', '');
+    ['Deal', 'Rep', 'Draft', 'Maya\'s call', 'Outcome', 'Winner']
+      .forEach(h => hr.appendChild(pilotEl('th', '', h)));
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    const tbody = pilotEl('tbody', '');
+    r.register.forEach(row => {
+      const tr = pilotEl('tr', 'pilot-reg-row');
+      const nameTd = pilotEl('td', '');
+      nameTd.appendChild(pilotEl('span', 'pilot-deal-name', row.name));
+      nameTd.appendChild(pilotEl('span', 'pilot-deal-id', row.id));
+      tr.appendChild(nameTd);
+      tr.appendChild(pilotEl('td', 'mute', row.rep));
+      tr.appendChild(pilotEl('td', 'mute', row.draft));
+      tr.appendChild(pilotEl('td', 'sibyl', row.maya));
+      tr.appendChild(pilotEl('td', 'mute', row.outcome || '—'));
+      const wTd = pilotEl('td', '');
+      if (row.status === 'Open') {
+        wTd.appendChild(pilotEl('span', 'pilot-chip insuff', 'Open'));
+      } else if (row.winner === 'Maya') {
+        wTd.appendChild(pilotEl('span', 'pilot-chip up', 'Maya'));
+      } else {
+        wTd.appendChild(pilotEl('span', 'pilot-confirm', row.winner || '—'));
+      }
+      tr.appendChild(wTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    card.appendChild(wrap);
+    section.appendChild(card);
+  }
+  host.appendChild(section);
+}
+
+/* ---- the last section: the chase list (field 10) as a table ---------
+   The model's own words, split defensively: a line that reads "who — what"
+   becomes two cells; anything else falls back to one full-width cell. No
+   line is dropped, reworded, or summarized. */
+
+function pilotChaseRows(text) {
+  return String(text || '').split('\n')
+    .map(s => s.replace(/^\s*[-*+]\s*/, '').trim())
+    .filter(Boolean)
+    .map(line => {
+      const mm = /^(.{2,64}?)\s+[—–]\s+(.+)$/.exec(line);
+      return mm ? { who: mm[1], what: mm[2] } : { who: null, what: line };
+    });
+}
+
+function renderPilotChase(host, m) {
+  const rows = pilotChaseRows(m.prose.chaseList);
+  if (!rows.length) return;
+  const section = pilotEl('section', 'pilot-section');
+  section.id = 'pilotChase';
+  pilotSectionTitle(section, '03 · Chase list', 'What to chase before submitting',
+    'Stale or missing data the draft flagged — each line names what to nudge for. ' +
+    'Sibyl\'s own words, unedited.');
+  const card = pilotEl('div', 'pilot-card');
+  const wrap = pilotEl('div', 'pilot-table-wrap');
+  const table = pilotEl('table', 'pilot-table');
+  const thead = pilotEl('thead', '');
+  const hr = pilotEl('tr', '');
+  ['Deal / rep', 'What\'s missing'].forEach(h => hr.appendChild(pilotEl('th', '', h)));
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  const tbody = pilotEl('tbody', '');
+  rows.forEach(row => {
+    const tr = pilotEl('tr', 'pilot-chase-row');
+    if (row.who === null) {
+      const td = pilotEl('td', '');
+      td.setAttribute('colspan', '2');
+      pilotInline(td, row.what);
+      tr.appendChild(td);
+    } else {
+      const whoTd = pilotEl('td', '');
+      whoTd.appendChild(pilotEl('span', 'pilot-deal-name', row.who));
+      tr.appendChild(whoTd);
+      const whatTd = pilotEl('td', 'mute');
+      pilotInline(whatTd, row.what);
+      tr.appendChild(whatTd);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+  section.appendChild(card);
+  host.appendChild(section);
+}
+
 function renderPilotSections(host, m) {
   host.textContent = '';
   renderPilotDeals(host, m);
+  renderPilotRecon(host, m);
+  /* The chase list stays LAST — everything above it is the decision;
+     this is the homework. */
+  renderPilotChase(host, m);
 }
 
 /* ---- Inc 4: the deal drawer ----------------------------------------
@@ -16406,6 +16647,39 @@ function renderPilotSections(host, m) {
    recorded action triggers. */
 
 let PILOT_DRAWER = null;
+
+/* The reviewer contract's snake_case labels, written out for the drawer —
+   the 1:1 mapping is by position and content, not by rendering the raw key. */
+const PILOT_FIELD_LABELS = {
+  deal_id: 'Deal ID', deal_name: 'Deal name', rep_category: 'Rep category',
+  reviewer_category: 'Reviewer category', verdict: 'Verdict',
+  confidence: 'Confidence', wow_change: 'Week-over-week change',
+  evidence: 'Evidence', recommended_action: 'Recommended action'
+};
+
+/* Bottom-right toast — success feedback for the gate actions. Errors stay
+   inline in the drawer, where they block the action they belong to. */
+function pilotToast(title, desc) {
+  const host = document.getElementById('pilotToasts');
+  if (!host) return;
+  const t = pilotEl('div', 'pilot-toast');
+  t.appendChild(pilotEl('p', 't', title));
+  if (desc) t.appendChild(pilotEl('p', 'd', desc));
+  const drop = function () { if (t.parentNode) t.parentNode.removeChild(t); };
+  t.addEventListener('click', drop);
+  host.appendChild(t);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { t.className = 'pilot-toast show'; });
+    });
+  } else {
+    t.className = 'pilot-toast show';
+  }
+  setTimeout(function () {
+    t.className = 'pilot-toast';
+    setTimeout(drop, 220);
+  }, 4000);
+}
 
 function pilotOpenDrawer(id) {
   const c = dealGateContext(id);
@@ -16442,15 +16716,29 @@ function pilotDealAction(act) {
   } else {
     return null;
   }
-  s.msg = r.ok ? r.message : r.error;
-  s.tone = r.ok ? 'ok' : 'warn';
   if (r.ok) {
+    s.msg = '';
+    s.tone = '';
+    /* Success reads as a toast, not a box in the drawer. */
+    const c = dealGateContext(s.id);
+    const nm = c ? c.deal['Deal Name'] : s.id;
+    const g = DEAL_GATE[s.id] || {};
+    if (act === 'approve') {
+      pilotToast(nm + ' approved', 'Recorded — ' + (g.category || s.cat) + ' stands.');
+    } else if (act === 'edit') {
+      pilotToast('Category saved', nm + ' · ' + (g.category || s.cat) +
+        ' — staged override, re-calculate to apply.');
+    } else {
+      pilotToast('Escalated', nm + (s.reason ? ' · ' + s.reason : ''));
+    }
     /* The same repaint pair the console's handler uses — the run log and
        every deal surface (renderDealGate ends by re-rendering the pilot,
        drawer included). */
     renderRunLog();
     renderDealGate();
   } else {
+    s.msg = r.error;
+    s.tone = 'warn';
     renderPilot();
   }
   return r;
@@ -16488,21 +16776,17 @@ function renderPilotDrawer(m) {
     ' · ' + d.rep));
   const chips = pilotEl('div', 'pilot-drawer-chiprow');
   chips.appendChild(pilotVerdictChip(d));
-  if (d.confidence) {
-    chips.appendChild(pilotEl('span', 'pilot-confirm', 'confidence ' + d.confidence));
-  }
   head.appendChild(chips);
   drawer.appendChild(head);
 
-  /* the nine labelled fields — exact 1:1 with the reviewer contract */
+  /* the nine labelled fields — exact 1:1 with the reviewer contract,
+     labels written out (PILOT_FIELD_LABELS), no section heading. */
   const fields = pilotEl('div', 'pilot-drawer-fields');
-  fields.appendChild(pilotEl('p', 'pilot-note-label',
-    'Sibyl\'s reading — the nine labelled fields'));
   if (d.readingFields) {
     READING_FIELDS.forEach(f => {
       const v = d.readingFields[f];
       const row = pilotEl('div', 'pilot-field' + (v === null ? ' absent' : ''));
-      row.appendChild(pilotEl('p', 'k', f));
+      row.appendChild(pilotEl('p', 'k', PILOT_FIELD_LABELS[f] || f));
       if (f === 'evidence' && v) {
         const host = pilotEl('div', 'v');
         pilotEvidenceLines(v).forEach(b => host.appendChild(pilotEl('p', 'pilot-ev', b)));
@@ -16520,9 +16804,10 @@ function renderPilotDrawer(m) {
   }
   drawer.appendChild(fields);
 
-  /* your call — the human gate, the same one the console records through */
+  /* your call — the human gate, the same one the console records through.
+     Separated by a rule, with the loud label — this is the point. */
   const call = pilotEl('div', 'pilot-drawer-call');
-  call.appendChild(pilotEl('p', 'pilot-note-label', 'Your call'));
+  call.appendChild(pilotEl('p', 'pilot-call-label', 'Your call'));
   if (d.mayaCall) {
     call.appendChild(pilotEl('p', 'pilot-drawer-status',
       d.mayaCall.action + ' — ' + (d.mayaCall.category || '') +

@@ -1390,6 +1390,19 @@ function decisionStats() {
   const openDisputes = acts.filter(r => r['Disagreement Status'] === 'Open')
     .map(r => ({ id: r['Deal ID'], name: r['Deal Name'], rep: r['Rep'],
                  draft: r['Draft Category'], maya: r['Final Category'], action: r['Maya Action'] }));
+  /* P4 Inc 5 (additive) — the full disagreement register, row by row: every
+     deal_action where draft and manager actually disagreed (Resolved or
+     Open). Agreement rows are not disagreements and stay out. Same reader,
+     same filters as the counts above — the pilot surface renders THIS, so
+     the table and the totals cannot drift apart. */
+  const register = acts
+    .filter(r => r['Disagreement Status'] === 'Resolved' || r['Disagreement Status'] === 'Open')
+    .map(r => ({ id: r['Deal ID'], name: r['Deal Name'], rep: r['Rep'],
+                 amount: num(r['Amount']),
+                 draft: r['Draft Category'], maya: r['Final Category'],
+                 action: r['Maya Action'], direction: r['Direction'],
+                 status: r['Disagreement Status'], resolvedWeek: r['Resolved Week'],
+                 winner: r['Winner'], outcome: r['Outcome'] }));
   const weekly = DB['decisions_log.csv'].rows
     .filter(r => r['Record Type'] === 'weekly_summary')
     .map(r => ({ week: r['Week Ending'], note: r['Note'] }));
@@ -1417,7 +1430,8 @@ function decisionStats() {
 
   return { week: wk, accuracy: accuracy, record: {
              resolved: resolved.length, draftWins: draftWins, mayaWins: mayaWins,
-             byDirection: byDirection, openDisputes: openDisputes, weekly: weekly },
+             byDirection: byDirection, openDisputes: openDisputes, weekly: weekly,
+             register: register },
            wow: wow };
 }
 
@@ -5484,6 +5498,19 @@ function buildPilotModel() {
   reps.sort((a, b) => b.commit - a.commit || (a.name < b.name ? -1 : 1));
 
   const rec = stats.record;
+  /* Inc 5 (additive, still v1) — last week on the record: draft commit vs
+     what Maya submitted, from the decisions_log weekly_summary row. Seed
+     data written by code, matched by pattern — NOT model prose; when no row
+     matches, the tiles simply do not render. */
+  let reconciliation = null;
+  for (let i = rec.weekly.length - 1; i >= 0; i--) {
+    const mm = /Draft commit (\d+) vs submitted (\d+)/.exec(rec.weekly[i].note || '');
+    if (mm) {
+      reconciliation = { week: rec.weekly[i].week,
+                         draft: num(mm[1]), submitted: num(mm[2]) };
+      break;
+    }
+  }
   const challenged = deals.filter(d => d.challenged);
   return {
     meta: {
@@ -5526,7 +5553,8 @@ function buildPilotModel() {
     record: {
       resolved: rec.resolved, draftWins: rec.draftWins, mayaWins: rec.mayaWins,
       winRatePct: rec.resolved ? Math.round(100 * rec.mayaWins / rec.resolved) : null,
-      openDisputes: rec.openDisputes, weekly: rec.weekly
+      openDisputes: rec.openDisputes, weekly: rec.weekly,
+      register: rec.register || [], reconciliation: reconciliation
     },
     gate: { open: !!GATE, complete: gateComplete(), status: gateStatus() }
   };
@@ -5846,9 +5874,167 @@ function renderPilotDeals(host, m) {
   host.appendChild(section);
 }
 
+/* ---- section 02: reconciliation — last week, on the record ----------
+   Draft-vs-submitted tiles (no "Actual" tile, no narrative lines — every
+   figure is a log row), the full disagreement register, and the override
+   win-rate card. All of it from decisionStats() over decisions_log.csv;
+   nothing here is the model narrating its own track record. */
+
+function renderPilotRecon(host, m) {
+  const r = m.record;
+  const section = pilotEl('section', 'pilot-section');
+  pilotSectionTitle(section, '02 · Reconciliation', 'Last week, on the record',
+    'What the draft said, what was submitted, and who turned out right — ' +
+    'straight from the decisions log.');
+
+  const grid = pilotEl('div', 'pilot-recon-grid');
+
+  /* draft vs submitted — only when the log carries the weekly summary */
+  const tilesCard = pilotEl('div', 'pilot-card pilot-recon-card');
+  if (r.reconciliation) {
+    const rc = r.reconciliation;
+    const tiles = pilotEl('div', 'pilot-recon-tiles');
+    [
+      { k: 'Draft commit', v: moneyShort(rc.draft), cls: '' },
+      { k: 'Maya submitted', v: moneyShort(rc.submitted), cls: ' accent' },
+      { k: 'Delta', v: pilotSigned(rc.submitted - rc.draft),
+        cls: rc.submitted - rc.draft < 0 ? ' neg' : ' pos' }
+    ].forEach(s => {
+      const st = pilotEl('div', 'pilot-stat');
+      st.appendChild(pilotEl('p', 'k', s.k));
+      st.appendChild(pilotEl('p', 'n' + s.cls, s.v));
+      tiles.appendChild(st);
+    });
+    tilesCard.appendChild(tiles);
+    tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
+      'Week ending ' + rc.week + ' · decisions_log.csv'));
+  } else {
+    tilesCard.appendChild(pilotEl('p', 'pilot-recon-cap',
+      'No weekly summary on the log yet.'));
+  }
+  grid.appendChild(tilesCard);
+
+  /* the override win-rate card */
+  const dark = pilotEl('div', 'pilot-dark-card');
+  dark.id = 'pilotWinRate';
+  dark.appendChild(pilotEl('p', 'k', 'Override win rate'));
+  dark.appendChild(pilotEl('p', 'n',
+    r.winRatePct === null ? '—' : r.winRatePct + '%'));
+  dark.appendChild(pilotEl('p', 'd',
+    r.resolved + ' resolved disagreement' + (r.resolved === 1 ? '' : 's') +
+    ' · draft won ' + r.draftWins + ' · Maya won ' + r.mayaWins));
+  if (r.openDisputes.length) {
+    dark.appendChild(pilotEl('p', 'd',
+      r.openDisputes.length + ' still open — ' +
+      r.openDisputes.map(o => o.id + ' ' + o.name).join(', ')));
+  }
+  grid.appendChild(dark);
+  section.appendChild(grid);
+
+  /* the disagreement register, row by row */
+  if (r.register.length) {
+    const card = pilotEl('div', 'pilot-card');
+    const wrap = pilotEl('div', 'pilot-table-wrap');
+    const table = pilotEl('table', 'pilot-table');
+    const thead = pilotEl('thead', '');
+    const hr = pilotEl('tr', '');
+    ['Deal', 'Rep', 'Draft', 'Maya\'s call', 'Outcome', 'Winner']
+      .forEach(h => hr.appendChild(pilotEl('th', '', h)));
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    const tbody = pilotEl('tbody', '');
+    r.register.forEach(row => {
+      const tr = pilotEl('tr', 'pilot-reg-row');
+      const nameTd = pilotEl('td', '');
+      nameTd.appendChild(pilotEl('span', 'pilot-deal-name', row.name));
+      nameTd.appendChild(pilotEl('span', 'pilot-deal-id', row.id));
+      tr.appendChild(nameTd);
+      tr.appendChild(pilotEl('td', 'mute', row.rep));
+      tr.appendChild(pilotEl('td', 'mute', row.draft));
+      tr.appendChild(pilotEl('td', 'sibyl', row.maya));
+      tr.appendChild(pilotEl('td', 'mute', row.outcome || '—'));
+      const wTd = pilotEl('td', '');
+      if (row.status === 'Open') {
+        wTd.appendChild(pilotEl('span', 'pilot-chip insuff', 'Open'));
+      } else if (row.winner === 'Maya') {
+        wTd.appendChild(pilotEl('span', 'pilot-chip up', 'Maya'));
+      } else {
+        wTd.appendChild(pilotEl('span', 'pilot-confirm', row.winner || '—'));
+      }
+      tr.appendChild(wTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    card.appendChild(wrap);
+    section.appendChild(card);
+  }
+  host.appendChild(section);
+}
+
+/* ---- the last section: the chase list (field 10) as a table ---------
+   The model's own words, split defensively: a line that reads "who — what"
+   becomes two cells; anything else falls back to one full-width cell. No
+   line is dropped, reworded, or summarized. */
+
+function pilotChaseRows(text) {
+  return String(text || '').split('\n')
+    .map(s => s.replace(/^\s*[-*+]\s*/, '').trim())
+    .filter(Boolean)
+    .map(line => {
+      const mm = /^(.{2,64}?)\s+[—–]\s+(.+)$/.exec(line);
+      return mm ? { who: mm[1], what: mm[2] } : { who: null, what: line };
+    });
+}
+
+function renderPilotChase(host, m) {
+  const rows = pilotChaseRows(m.prose.chaseList);
+  if (!rows.length) return;
+  const section = pilotEl('section', 'pilot-section');
+  section.id = 'pilotChase';
+  pilotSectionTitle(section, '03 · Chase list', 'What to chase before submitting',
+    'Stale or missing data the draft flagged — each line names what to nudge for. ' +
+    'Sibyl\'s own words, unedited.');
+  const card = pilotEl('div', 'pilot-card');
+  const wrap = pilotEl('div', 'pilot-table-wrap');
+  const table = pilotEl('table', 'pilot-table');
+  const thead = pilotEl('thead', '');
+  const hr = pilotEl('tr', '');
+  ['Deal / rep', 'What\'s missing'].forEach(h => hr.appendChild(pilotEl('th', '', h)));
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  const tbody = pilotEl('tbody', '');
+  rows.forEach(row => {
+    const tr = pilotEl('tr', 'pilot-chase-row');
+    if (row.who === null) {
+      const td = pilotEl('td', '');
+      td.setAttribute('colspan', '2');
+      pilotInline(td, row.what);
+      tr.appendChild(td);
+    } else {
+      const whoTd = pilotEl('td', '');
+      whoTd.appendChild(pilotEl('span', 'pilot-deal-name', row.who));
+      tr.appendChild(whoTd);
+      const whatTd = pilotEl('td', 'mute');
+      pilotInline(whatTd, row.what);
+      tr.appendChild(whatTd);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+  section.appendChild(card);
+  host.appendChild(section);
+}
+
 function renderPilotSections(host, m) {
   host.textContent = '';
   renderPilotDeals(host, m);
+  renderPilotRecon(host, m);
+  /* The chase list stays LAST — everything above it is the decision;
+     this is the homework. */
+  renderPilotChase(host, m);
 }
 
 /* ---- Inc 4: the deal drawer ----------------------------------------
@@ -5860,6 +6046,39 @@ function renderPilotSections(host, m) {
    recorded action triggers. */
 
 let PILOT_DRAWER = null;
+
+/* The reviewer contract's snake_case labels, written out for the drawer —
+   the 1:1 mapping is by position and content, not by rendering the raw key. */
+const PILOT_FIELD_LABELS = {
+  deal_id: 'Deal ID', deal_name: 'Deal name', rep_category: 'Rep category',
+  reviewer_category: 'Reviewer category', verdict: 'Verdict',
+  confidence: 'Confidence', wow_change: 'Week-over-week change',
+  evidence: 'Evidence', recommended_action: 'Recommended action'
+};
+
+/* Bottom-right toast — success feedback for the gate actions. Errors stay
+   inline in the drawer, where they block the action they belong to. */
+function pilotToast(title, desc) {
+  const host = document.getElementById('pilotToasts');
+  if (!host) return;
+  const t = pilotEl('div', 'pilot-toast');
+  t.appendChild(pilotEl('p', 't', title));
+  if (desc) t.appendChild(pilotEl('p', 'd', desc));
+  const drop = function () { if (t.parentNode) t.parentNode.removeChild(t); };
+  t.addEventListener('click', drop);
+  host.appendChild(t);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { t.className = 'pilot-toast show'; });
+    });
+  } else {
+    t.className = 'pilot-toast show';
+  }
+  setTimeout(function () {
+    t.className = 'pilot-toast';
+    setTimeout(drop, 220);
+  }, 4000);
+}
 
 function pilotOpenDrawer(id) {
   const c = dealGateContext(id);
@@ -5896,15 +6115,29 @@ function pilotDealAction(act) {
   } else {
     return null;
   }
-  s.msg = r.ok ? r.message : r.error;
-  s.tone = r.ok ? 'ok' : 'warn';
   if (r.ok) {
+    s.msg = '';
+    s.tone = '';
+    /* Success reads as a toast, not a box in the drawer. */
+    const c = dealGateContext(s.id);
+    const nm = c ? c.deal['Deal Name'] : s.id;
+    const g = DEAL_GATE[s.id] || {};
+    if (act === 'approve') {
+      pilotToast(nm + ' approved', 'Recorded — ' + (g.category || s.cat) + ' stands.');
+    } else if (act === 'edit') {
+      pilotToast('Category saved', nm + ' · ' + (g.category || s.cat) +
+        ' — staged override, re-calculate to apply.');
+    } else {
+      pilotToast('Escalated', nm + (s.reason ? ' · ' + s.reason : ''));
+    }
     /* The same repaint pair the console's handler uses — the run log and
        every deal surface (renderDealGate ends by re-rendering the pilot,
        drawer included). */
     renderRunLog();
     renderDealGate();
   } else {
+    s.msg = r.error;
+    s.tone = 'warn';
     renderPilot();
   }
   return r;
@@ -5942,21 +6175,17 @@ function renderPilotDrawer(m) {
     ' · ' + d.rep));
   const chips = pilotEl('div', 'pilot-drawer-chiprow');
   chips.appendChild(pilotVerdictChip(d));
-  if (d.confidence) {
-    chips.appendChild(pilotEl('span', 'pilot-confirm', 'confidence ' + d.confidence));
-  }
   head.appendChild(chips);
   drawer.appendChild(head);
 
-  /* the nine labelled fields — exact 1:1 with the reviewer contract */
+  /* the nine labelled fields — exact 1:1 with the reviewer contract,
+     labels written out (PILOT_FIELD_LABELS), no section heading. */
   const fields = pilotEl('div', 'pilot-drawer-fields');
-  fields.appendChild(pilotEl('p', 'pilot-note-label',
-    'Sibyl\'s reading — the nine labelled fields'));
   if (d.readingFields) {
     READING_FIELDS.forEach(f => {
       const v = d.readingFields[f];
       const row = pilotEl('div', 'pilot-field' + (v === null ? ' absent' : ''));
-      row.appendChild(pilotEl('p', 'k', f));
+      row.appendChild(pilotEl('p', 'k', PILOT_FIELD_LABELS[f] || f));
       if (f === 'evidence' && v) {
         const host = pilotEl('div', 'v');
         pilotEvidenceLines(v).forEach(b => host.appendChild(pilotEl('p', 'pilot-ev', b)));
@@ -5974,9 +6203,10 @@ function renderPilotDrawer(m) {
   }
   drawer.appendChild(fields);
 
-  /* your call — the human gate, the same one the console records through */
+  /* your call — the human gate, the same one the console records through.
+     Separated by a rule, with the loud label — this is the point. */
   const call = pilotEl('div', 'pilot-drawer-call');
-  call.appendChild(pilotEl('p', 'pilot-note-label', 'Your call'));
+  call.appendChild(pilotEl('p', 'pilot-call-label', 'Your call'));
   if (d.mayaCall) {
     call.appendChild(pilotEl('p', 'pilot-drawer-status',
       d.mayaCall.action + ' — ' + (d.mayaCall.category || '') +

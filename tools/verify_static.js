@@ -349,6 +349,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
+  'PILOT_FIELD_LABELS, ' +
   'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
@@ -381,6 +382,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
+        PILOT_FIELD_LABELS,
         pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
@@ -2122,7 +2124,7 @@ function check(name, cond, detail) {
     'writeTokenState',
     'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
     'worldcheckRoot', 'pilotEmpty', 'pilotHero', 'pilotMain', 'pilotPanel', 'pilotSections',
-    'pilotDrawer', 'pilotDrawerScrim'];
+    'pilotDrawer', 'pilotDrawerScrim', 'pilotToasts'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -3305,7 +3307,10 @@ function check(name, cond, detail) {
   setLastRun({ n: 99, at: '12:00:00', kind: 'weekly', faulted: false, error: '',
     band: { code: 'OK', tone: 'ok' },
     scan: { parsed: true, found: [], missing: [],
-            values: { forecast_notes: 'notes35', sibyl_reading: 'read35' } },
+            values: { forecast_notes: 'notes35', sibyl_reading: 'read35',
+                      chase_list: '- DL-0150 Halcyon Freight — no meeting brief on file; ' +
+                                  'ask for the EB readout [M5.3]\n' +
+                                  'Brief the team on stale stage data before Friday' } },
     refusal: { refused: false }, readings: p35readings, walk: p35walk,
     text: '', decisions: p35decisions });
   /* A real run sets LAST_READINGS alongside LAST_RUN — the console's deal
@@ -3418,16 +3423,21 @@ function check(name, cond, detail) {
     els.pilotDrawer.className === 'pilot-drawer open' &&
     els.pilotDrawerScrim.style.display === '' &&
     countByClass(els.pilotDrawer, 'pilot-field') === READING_FIELDS.length &&
-    textsByClass(els.pilotDrawer, 'k').join('|') === READING_FIELDS.join('|'),
-    d35a.id + ' · ' + countByClass(els.pilotDrawer, 'pilot-field') + ' field rows');
-  check('35p Approve in the drawer records through the console\'s own gate functions',
+    textsByClass(els.pilotDrawer, 'k').join('|') ===
+      READING_FIELDS.map(f => PILOT_FIELD_LABELS[f]).join('|') &&
+    READING_FIELDS.every(f => PILOT_FIELD_LABELS[f] && PILOT_FIELD_LABELS[f].indexOf('_') === -1),
+    d35a.id + ' · ' + countByClass(els.pilotDrawer, 'pilot-field') +
+    ' field rows, labels written out');
+  check('35p Approve in the drawer records through the console\'s own gate functions, toast not box',
     (() => {
       const r = pilotDealAction('approve');
       return r && r.ok && DEAL_GATE[d35a.id].action === 'APPROVED' &&
              /1 approved/.test(els.dealGateSummary.textContent) &&
-             /APPROVED/.test(els.pilotDealMsg.textContent);
+             textsByClass(els.pilotToasts, 't').some(t => /approved/.test(t)) &&
+             getPilotDrawer().msg === '';
     })(),
-    d35a.id + ' · ' + els.dealGateSummary.textContent);
+    d35a.id + ' · ' + els.dealGateSummary.textContent + ' · toast: ' +
+    textsByClass(els.pilotToasts, 't').join(' / '));
   check('35q an edit lands in DEAL_GATE and the contract marks it pending re-calculation',
     (() => {
       const s = getPilotDrawer();
@@ -3464,6 +3474,40 @@ function check(name, cond, detail) {
              els.pilotDrawer.className === 'pilot-drawer' &&
              els.pilotDrawer.children.length === 0;
     })(), 'drawer closed');
+  /* 35t-35w — P4 Inc 5: reconciliation + the record + the chase list. */
+  const m35b = buildPilotModel();
+  check('35t the record carries the full register and last week\'s draft-vs-submitted',
+    m35b.record.register.length === 7 &&
+    m35b.record.register.filter(x => x.status === 'Open').length === 1 &&
+    m35b.record.openDisputes.length === 1 && m35b.record.openDisputes[0].id === 'DL-0007' &&
+    m35b.record.reconciliation !== null &&
+    m35b.record.reconciliation.week === '2026-07-17' &&
+    m35b.record.reconciliation.draft === 663651 &&
+    m35b.record.reconciliation.submitted === 500000 &&
+    m35b.record.winRatePct === 33,
+    m35b.record.register.length + ' register rows · draft ' +
+    money(m35b.record.reconciliation ? m35b.record.reconciliation.draft : 0) +
+    ' vs submitted ' +
+    money(m35b.record.reconciliation ? m35b.record.reconciliation.submitted : 0));
+  renderPilot();
+  check('35u the reconciliation section renders tiles, the win-rate card, and every register row',
+    (() => {
+      const ns = textsByClass(els.pilotSections, 'n');
+      return countByClass(els.pilotSections, 'pilot-reg-row') === 7 &&
+             ns.indexOf('$663.7K') !== -1 && ns.indexOf('$500K') !== -1 &&
+             ns.indexOf('-$163.7K') !== -1 &&
+             textsByClass(els.pilotWinRate, 'n')[0] === '33%';
+    })(),
+    countByClass(els.pilotSections, 'pilot-reg-row') + ' rows · ' +
+    textsByClass(els.pilotWinRate, 'n')[0] + ' win rate');
+  check('35v the chase list parses "who — what" into cells and keeps unsplit lines whole',
+    countByClass(els.pilotChase, 'pilot-chase-row') === 2 &&
+    textsByClass(els.pilotChase, 'pilot-deal-name').join('|') === 'DL-0150 Halcyon Freight',
+    countByClass(els.pilotChase, 'pilot-chase-row') + ' rows, one split, one prose fallback');
+  check('35w the chase list is the LAST section on the page',
+    els.pilotSections.children.length === 3 &&
+    els.pilotSections.children[2].id === 'pilotChase',
+    els.pilotSections.children.length + ' sections, chase last');
   const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
   openGate(p35entry, 'harness draft', 'draft');
   renderPilot();

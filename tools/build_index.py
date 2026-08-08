@@ -646,6 +646,35 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                      color: var(--warn); }
 .pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
+/* Inc 5 — reconciliation, the record, the chase list. The dark card is
+   the inverse surface: ink for ground, page color for figure — tokens
+   only, so every skin keeps its own contrast. */
+.pilot-recon-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+                    gap: var(--sp-4); align-items: stretch;
+                    margin-bottom: var(--sp-4); }
+@media (max-width: 1100px) { .pilot-recon-grid { grid-template-columns: 1fr; } }
+.pilot-recon-card { padding: var(--sp-5); }
+.pilot-recon-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-7);
+                     align-items: flex-end; }
+.pilot-recon-cap { margin: var(--sp-4) 0 0; font-size: var(--fs-0);
+                   color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pilot-dark-card { background: var(--ink); color: var(--bg);
+                   border-radius: var(--radius);
+                   box-shadow: var(--shadow-2, var(--shadow));
+                   padding: var(--sp-5); display: flex; flex-direction: column;
+                   justify-content: center; }
+.pilot-dark-card .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                      letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                      color: color-mix(in srgb, var(--bg) 72%, transparent);
+                      margin: 0; }
+.pilot-dark-card .n { font-size: var(--fs-display-xl); font-weight: var(--w-display);
+                      letter-spacing: var(--track-display-xl);
+                      font-variant-numeric: tabular-nums;
+                      margin: var(--sp-1) 0 0; }
+.pilot-dark-card .d { font-size: var(--fs-0); line-height: 1.5;
+                      color: color-mix(in srgb, var(--bg) 80%, transparent);
+                      margin: var(--sp-2) 0 0; }
+
 /* Inc 4 — the deal drawer. The row is the door; the drawer slides over
    from the right and scrolls on its own. Token-only, no new colors. */
 .pilot-deal-row { cursor: pointer; }
@@ -653,10 +682,10 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-scrim { position: fixed; inset: 0; z-index: 40;
                       background: color-mix(in srgb, var(--ink) 32%, transparent); }
 .pilot-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
-                width: min(480px, 92vw); background: var(--bg-raise);
+                width: min(672px, 94vw); background: var(--bg-raise);
                 border-left: var(--border-w) solid var(--line);
                 box-shadow: var(--shadow-2, var(--shadow));
-                padding: var(--sp-5) var(--sp-5) var(--sp-7);
+                padding: var(--sp-5) var(--sp-6) var(--sp-7);
                 overflow-y: auto; transform: translateX(102%);
                 transition: transform .18s ease; }
 .pilot-drawer.open { transform: translateX(0); }
@@ -670,18 +699,25 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-chiprow { display: flex; align-items: center; gap: var(--sp-3);
                         margin-top: var(--sp-3); }
 .pilot-drawer-fields { margin-top: var(--sp-5); }
-.pilot-field { display: grid; grid-template-columns: 150px minmax(0, 1fr);
-               gap: var(--sp-3); padding: var(--sp-2) 0;
+.pilot-field { display: grid; grid-template-columns: 170px minmax(0, 1fr);
+               gap: var(--sp-4); padding: var(--sp-3) 0;
                border-top: var(--border-w) solid var(--line); }
-.pilot-field .k { font-family: var(--font-mono); font-size: var(--fs-micro);
-                  color: var(--ink-3); margin: 0; overflow-wrap: anywhere; }
-.pilot-field .v { font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5;
+.pilot-field .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                  color: var(--ink-3); margin: 0; padding-top: 3px; }
+.pilot-field .v { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.5;
                   margin: 0; }
 .pilot-field.absent .v { color: var(--ink-3); }
 .pilot-ev { margin: 0 0 var(--sp-1); padding-left: var(--sp-3); position: relative;
             font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5; }
 .pilot-ev::before { content: '·'; position: absolute; left: 0; color: var(--accent); }
-.pilot-drawer-call { margin-top: var(--sp-5); }
+/* The decision area is separated from the evidence above it, and its label
+   is the loud one — the human gate is the point of the drawer. */
+.pilot-drawer-call { margin-top: var(--sp-5); border-top: var(--border-w) solid var(--line);
+                     padding-top: var(--sp-5); }
+.pilot-call-label { font-size: var(--fs-caption); font-weight: var(--w-strong);
+                    letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                    color: var(--accent-deep, var(--accent)); margin: 0 0 var(--sp-3); }
 .pilot-drawer-status { font-size: var(--fs-0); color: var(--ink); margin: 0 0 var(--sp-2); }
 .pilot-drawer-status.mute { color: var(--ink-3); }
 .pilot-drawer-warn { font-size: var(--fs-0); color: var(--warn); }
@@ -695,6 +731,22 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
 .pilot-drawer-reason:focus { outline: none; border-color: var(--accent); }
 .pilot-drawer-chk { display: inline-flex; align-items: center; gap: var(--sp-1);
                     font-size: var(--fs-0); color: var(--ink-2); }
+
+/* Toasts — bottom-right, the Lovable/sonner shape: white card, strong title,
+   muted line, slide-and-fade, click or 4s to dismiss. */
+#pilotToasts { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 60;
+               display: flex; flex-direction: column; gap: var(--sp-2);
+               align-items: flex-end; pointer-events: none; }
+.pilot-toast { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+               border-radius: var(--radius-md); box-shadow: var(--shadow-2, var(--shadow));
+               padding: var(--sp-4) var(--sp-5); width: 356px; max-width: 92vw;
+               cursor: pointer; pointer-events: auto;
+               opacity: 0; transform: translateY(8px);
+               transition: opacity .18s ease, transform .18s ease; }
+.pilot-toast.show { opacity: 1; transform: translateY(0); }
+.pilot-toast .t { font-size: var(--fs-0); font-weight: var(--w-strong);
+                  color: var(--ink); margin: 0; }
+.pilot-toast .d { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0; }
 
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
@@ -927,6 +979,9 @@ body { overflow-x: hidden; }
   <div id="pilotDrawerScrim" class="pilot-drawer-scrim" style="display:none"></div>
   <aside id="pilotDrawer" class="pilot-drawer" aria-label="Deal review"></aside>
 </div>
+
+<!-- P4 Inc 4 QA — toast notifications (bottom right). -->
+<div id="pilotToasts"></div>
 
 <div class="worldcheck" id="worldcheckRoot">
   <details>

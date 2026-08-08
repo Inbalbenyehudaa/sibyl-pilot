@@ -85,7 +85,17 @@ The Pilot surface then shows its pre-run state.
     resolved, draftWins, mayaWins, // 6 / 4 / 2 in the shipped data
     winRatePct,                    // Maya's override win rate (33), null when nothing resolved
     openDisputes: [],              // { id, name, rep, draft, maya, action }
-    weekly: []                     // { week, note }
+    weekly: [],                    // { week, note }
+    register: [],                  // Inc 5 (additive, v1): every logged draft-vs-Maya
+                                   // disagreement (status Resolved or Open; agreement rows
+                                   // excluded) — { id, name, rep, amount, draft, maya,
+                                   // action, direction, status, resolvedWeek, winner,
+                                   // outcome }. 7 rows in the shipped data.
+    reconciliation                 // Inc 5 (additive, v1): last week's draft commit vs
+                                   // Maya's submission, pattern-matched from the
+                                   // weekly_summary log row (code-written seed data, not
+                                   // model prose) — { week, draft, submitted } | null.
+                                   // { '2026-07-17', 663651, 500000 } in the shipped data.
   },
 
   gate: { open, complete, status } // the human gate: gateComplete() + gateStatus()
@@ -112,4 +122,5 @@ mirroring; run-independent topdown numbers; deal/rep rollups; the decisions
 record; empty-state ↔ hero swap; headline content; the walk-up panel and
 notes formatting (35i–35k); the per-deal review section (35l–35n); the deal
 drawer — nine fields 1:1, approve/edit/escalate through the console's own
-gate functions, close semantics (35o–35s).
+gate functions, close semantics (35o–35s); reconciliation + register +
+win rate + the chase-list table as the last section (35t–35w).
