@@ -1,9 +1,12 @@
 # Sibyl Pilot — Session State
 
-Read this together with `PILOT_PLAYBOOK.md` before continuing. Written 2026-08-08 at the end of
-the Phase-4 build session (pilot UI Inc 0–3 + the §56/§57 agent fixes). **Next session:
-continue Phase 4 at Inc 4 (the deal drawer), then Inc 5–7. After Phase 4: course close-out
-(D09 pitch + D10 submission).**
+Read this together with `PILOT_PLAYBOOK.md` before continuing. Updated 2026-08-08 (later the
+same day): **P4 Inc 4–6 are built, QA'd and deployed.** Next: **Inc 7 — pitch polish + record
+the demo.** After Phase 4: course close-out (D09 pitch + D10 submission).
+
+⚠ 2026-08-08 lesson: TWO sessions edited this folder in parallel for a while (this one +
+"Sibyl pilot demo UI"). Reconciled — Inc 5 committed at `c9f1e3b` (with the other session's
+Inc 4 polish), Inc 6 at `f488921`. Keep it to ONE session at a time.
 
 ## ▶ START HERE — where things stand
 
@@ -12,7 +15,7 @@ continue Phase 4 at Inc 4 (the deal drawer), then Inc 5–7. After Phase 4: cour
 | Stream | Folder | Repo | Link | State |
 |---|---|---|---|---|
 | Course submission (FROZEN) | `../agentic-ai-capstone-develop-companion-v0.3` | `Inbalbenyehudaa/sibyl` | inbalbenyehudaa.github.io/sibyl/ | Frozen at `2a5f08e`. NEVER touched until submitted. D09+D10 remain; Week 8 deadline. |
-| Pilot (this folder) | `sibyl-pilot` | `Inbalbenyehudaa/sibyl-pilot` | inbalbenyehudaa.github.io/sibyl-pilot/ | P0–P3 ✅ · **P4 Inc 0–3 ✅ live-QA'd** · §56+§57 agent fixes ✅ · **421 checks green** · five-for-five evals ✅ 2026-08-08 |
+| Pilot (this folder) | `sibyl-pilot` | `Inbalbenyehudaa/sibyl-pilot` | inbalbenyehudaa.github.io/sibyl-pilot/ | P0–P3 ✅ · **P4 Inc 0–6 ✅ live-QA'd + deployed** · §56+§57 agent fixes ✅ · **431 checks green** · five-for-five evals ✅ 2026-08-08 |
 
 **Eval status: five-for-five passed LIVE on 2026-08-08 on the §56+§57 build** (EC-1/3/4/5 then
 EC-2). No eval debt. The stub saga and the field-count saga are both closed (below).
@@ -54,22 +57,28 @@ blocked; hydrated runs recompute the walk. Additive changes free; renames bump v
 - Retention note: console-only, copy "Pilot mode is a real deployment that stores runs and
   your decision log for a full feedback loop." Pilot tab hides settings/worldcheck.
 
-**Remaining increments (pause for user QA after each; each = rebuild → harness green → live QA
-→ commit):**
-- **Inc 4 — deal drawer**: slide-over on row click with the 9 reading fields (exact 1:1) +
-  approve / edit-category / escalate wired to `recordDealDecision`-family (`dealApprove`/
-  `dealEdit`/`dealEscalate`, agent_block ~3166+) — same `DEAL_GATE`, same persistence; both
-  UIs mirror. DONE-WHEN: a call in the Pilot drawer appears in the console deal view and (live
-  mode) in `sibyl_pilot_decisions`.
-- **Inc 5 — reconciliation + record + chase list**: draft-vs-submitted tiles (NO "Actual"
-  tile, NO narrative lines — user decisions), disagreement register + override win-rate dark
-  card from `decisionStats()` (real: 6 resolved, draft 4, Maya 2, 33%, 1 open DL-0007),
-  chase-list table (field 10) as the LAST page section. Evals stay OUT of Pilot.
-- **Inc 6 — entry pre-run state**: Slack-style "#forecast-maya · Friday" card as the pre-run
-  state; subtitle under the headline = the `forecast_notes` headline (user-requested); tiles
-  (delta / drift / challenged) only when hydrated data exists; REVISED-state mirroring;
-  restored-run handling.
-- **Inc 7 — pitch polish** + record the demo.
+**Done since (all live-QA'd + deployed, 2026-08-08):**
+- **Inc 4 — deal drawer ✅** (`b58b69d` + polish in `c9f1e3b`): row click → slide-over, 9
+  reading fields exact 1:1 (labels written out via `PILOT_FIELD_LABELS`), approve /
+  edit-category / escalate through `dealApprove`/`dealEdit`/`dealEscalate` — one `DEAL_GATE`,
+  both UIs mirror; success feedback = bottom-right toasts (`pilotToast`), errors inline;
+  scrim / Close / Escape dismiss. Contract additive: `readingFields`.
+- **Inc 5 — reconciliation + record + chase list ✅** (`c9f1e3b`, QA pass `9fa1ae4`,
+  parser fix `b4d01b6`): draft-vs-submitted tiles (no Actual, no narrative, no caption);
+  win-rate card per QA'd template ("2 Maya wins · 4 draft wins · 1 open", indigo surface,
+  magenta rate bar); disagreement register COLLAPSIBLE (scales SVG + description, collapsed
+  default, Draft column/values renamed **Sibyl**); chase list LAST, **deal-anchored parsing**
+  (`pilotChaseRows`/`pilotDealInText`: dash/colon split → open-deal name anchor + "(rep)" →
+  short hyphen lead → whole line; link ONLY on an explicit open-deal ID/exact name → opens
+  the drawer). Contract additive: `record.register`, `record.reconciliation`. Sections 64px
+  apart.
+- **Inc 6 — Friday entry card ✅** (`f488921`, built in the parallel session): #forecast-maya
+  card gates the dashboard (`PILOT_ENTERED`), forecast_notes headline as subtitle, three
+  tiles when a run exists, "Review forecast" reveals; restored-run pill.
+
+**Remaining:**
+- **Inc 7 — pitch polish** + record the demo (typography/spacing/copy pass, walk the story:
+  Friday card → drift story → deal drill-down → recalc → submit gate).
 
 **Pilot-view plumbing facts:** `renderPilot()` runs inside `renderDealGate()` (12 call sites →
 mirrors every state change incl. recalc/hydration). Markup shells in `tools/build_index.py`
@@ -100,10 +109,10 @@ Claude's memory (`sibyl-stub-call-saga`). Summary:
 - Edit `tools/agent_block.js` / `tools/build_index.py`, never `index.html`; rebuild
   `python3 tools/build_index.py`; data/policy/prompt edits → `python3 sync_assets.py`;
   TOKENS.css needs the full rebuild. `node tools/verify_static.js` green at every step —
-  **current total 421** (report changes). New harness symbols go in BOTH the `globalThis.__X`
+  **current total 431** (report changes). New harness symbols go in BOTH the `globalThis.__X`
   string AND the destructure.
-- Pilot checks: 21p/21q/21r (tabs), 35a–35n (contract + panel + deals section), 7w2/7w3/7z2
-  (§56), 7x11/7x12 (§57).
+- Pilot checks: 21p/21q/21r (tabs), 35a–35w (contract + panel + deals + drawer + recon/chase;
+  35f/35f2 = entry card), 7w2/7w3/7z2 (§56), 7x11/7x12 (§57).
 - Any system-prompt/policy/model/data change **or agent-visible runtime-text change** → live
   five-eval re-run (user runs; ~19 calls).
 - `sibyl_prompt.md` cap: 14,000 chars (7x9). Ports: submission 8931, pilot 8941 (launch config
