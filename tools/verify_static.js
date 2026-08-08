@@ -3190,12 +3190,11 @@ function check(name, cond, detail) {
     /English only/.test(limText) && /hard stop/.test(limText) &&
     /Synthetic\s+data only/.test(limText) &&
     /localStorage/.test(limText) && /no server sits between/.test(limText) &&
-    /decisions_log\.csv/.test(limText) && /outcome/.test(limText) &&
     /* retired by the pilot: recalc applies Maya's calls; suggested_best_case
        is a calculator quote since §57 */
     !/re-run the week/.test(limText) && !/recorded, not applied/.test(limText) &&
     !/suggested_best_case/.test(limText),
-    'scope, format, key custody, outcome loop — named; retired limits absent');
+    'scope, format, key custody — named; retired limits absent');
   check('32d no marketing language — limits are scope decisions, not a pitch',
     !/great|powerful|seamless|robust|cutting.edge|state.of.the.art|simply|just works/i.test(limText),
     'plain statements only');

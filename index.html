@@ -15088,12 +15088,11 @@ const KNOWN_LIMITS = [
     body: 'The Anthropic key lives in this browser\'s localStorage and every call goes ' +
       'straight from the page — no server sits between the manager and the model. Right for ' +
       'a pilot one manager runs herself; a team rollout needs a backend that holds the key ' +
-      'and decides who may run.' },
-  { head: 'The record learns only when outcomes land in the decisions log.',
-    body: 'The override win rate and the disagreement register are read from ' +
-      'decisions_log.csv, and a dispute is scored only when the deal\'s outcome is recorded ' +
-      'there. Nothing watches the CRM for closes — the feedback loop moves exactly as fast ' +
-      'as the log is updated.' }
+      'and decides who may run.' }
+  /* "The record learns only when outcomes land in the decisions log" was
+     considered and dropped (2026-08-08, user call): in a pilot where every
+     source is synthetic, that is true of all nine files alike — the
+     synthetic-data limit above already carries it. */
 ];
 
 function renderLimitsPanel() {
