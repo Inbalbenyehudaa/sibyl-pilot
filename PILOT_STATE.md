@@ -90,6 +90,16 @@ mirrors every state change incl. recalc/hydration). Markup shells in `tools/buil
 `#pilotSections`)); all logic in `tools/agent_block.js` PHASE 4 section (file end); pilot CSS
 token-only in build_index's own style block + `.tabs` recipe in TOKENS.css.
 
+## §58 (2026-08-08 later) — Opus 5's first run vs the label parser
+
+First run on `claude-opus-5` wrote the WRITE list as middle-dot-numbered Markdown headings
+(`## 1 · failed_checks_banner`) with merged pairs (`## 2 · suggested_forecast,
+suggested_best_case`) → 4 of 13 parsed. Fixed both layers (`3978cd0`): the label peel now
+strips `N ·`-style numbering (check 7x13 pins the live shape), and the three `WALK_UP_*`
+footers state the format contract (one label per line, never numbered/merged/headed) — check
+7g's ending updated. **The five-eval re-run covers Opus 5 + these footers together.**
+Check total now 434.
+
 ## The §56/§57 agent fixes (2026-08-07/08) — both live-validated
 
 Full records: **SIBYL_BUILD_STATE.md §56 and §57** (local file, gitignored in this repo) and
