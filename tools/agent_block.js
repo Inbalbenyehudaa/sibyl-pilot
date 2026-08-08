@@ -5773,8 +5773,7 @@ function pilotSectionTitle(host, eyebrow, title, sub) {
 function renderPilotDeals(host, m) {
   const section = pilotEl('section', 'pilot-section');
   pilotSectionTitle(section, '01 · Per-deal review', 'Scenario planning, grouped by rep',
-    'Open a rep to see each deal, the reviewer\'s verdict and your call. ' +
-    'Re-calculate applies your calls to the number.');
+    'Open a rep to see each open deal, the reviewer\'s verdict and your call.');
 
   const groups = pilotEl('div', '');
   groups.id = 'pilotRepGroups';
