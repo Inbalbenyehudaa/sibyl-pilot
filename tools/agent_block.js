@@ -5753,8 +5753,9 @@ function renderPilotPanel(panel, m) {
   actions.appendChild(submit);
   head.appendChild(actions);
 
-  const msg = pilotEl('p', 'pilot-panel-msg' + (m.gate.complete ? ' ok' : ''),
-    m.gate.complete ? m.gate.status.code : '');
+  /* Errors only — success feedback is the toast plus the Submitted button
+     state (QA call 2026-08-08: the gate-status code line duplicated both). */
+  const msg = pilotEl('p', 'pilot-panel-msg', '');
   msg.id = 'pilotPanelMsg';
   head.appendChild(msg);
   card.appendChild(head);

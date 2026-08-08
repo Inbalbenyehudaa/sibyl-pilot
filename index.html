@@ -10272,9 +10272,21 @@ const EVAL_EXPECTED = {
    21's cost experiment and again, unintentionally, during the section 24
    DL-0033 diagnosis. What was reverted in section 22 was the HAIKU reviewer on
    Stage 1, which failed the precision control — not this half of the pair.
-   Revert to 'claude-opus-4-8' if the evals regress. */
+   Revert to 'claude-opus-4-8' if the evals regress.
+
+   2026-08-08, on the user's instruction: STAGE 2 MOVED TO OPUS 5 — the
+   forecast triangulation is the judgment-heavy turn and the user wants a
+   reasoning-tier model on it (Sonnet was a cost choice for build/test runs).
+   The request shape stays legal unchanged: Opus 5 takes the same
+   `thinking: {adaptive, summarized}` + `output_config.effort` pair, rejects
+   the same sampling params, and thinking is on by default there anyway. The
+   tool loop already echoes the assistant `content` verbatim (thinking blocks
+   included), which Opus 5 requires. Same tokenizer family as Opus 4.8;
+   MAX_TOKENS_SIBYL 32000 already budgets for thinking. Stage 1 stays Sonnet 5
+   (the section-22 lesson was about the reviewer's precision, and Sonnet holds
+   it). PENDING: live five-eval re-run — the model rule in PILOT_STATE. */
 const MODEL_REVIEWER = 'claude-sonnet-5';     /* stage 1 — one deal reviewer per open deal */
-const MODEL_SIBYL = 'claude-sonnet-5';        /* stage 2 — the judgment-heavy Sibyl turn */
+const MODEL_SIBYL = 'claude-opus-5';          /* stage 2 — the judgment-heavy Sibyl turn */
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 /* Both stages think, but THE TWO MODELS TAKE DIFFERENT THINKING SHAPES — this is
@@ -16455,8 +16467,9 @@ function renderPilotPanel(panel, m) {
   actions.appendChild(submit);
   head.appendChild(actions);
 
-  const msg = pilotEl('p', 'pilot-panel-msg' + (m.gate.complete ? ' ok' : ''),
-    m.gate.complete ? m.gate.status.code : '');
+  /* Errors only — success feedback is the toast plus the Submitted button
+     state (QA call 2026-08-08: the gate-status code line duplicated both). */
+  const msg = pilotEl('p', 'pilot-panel-msg', '');
   msg.id = 'pilotPanelMsg';
   head.appendChild(msg);
   card.appendChild(head);

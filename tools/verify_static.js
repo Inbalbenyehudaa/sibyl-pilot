@@ -3569,7 +3569,7 @@ function check(name, cond, detail) {
       const toastTitles = textsByClass(els.pilotToasts, 't');
       return els.pilotSubmit.disabled === true &&
              els.pilotSubmit.textContent === 'Submitted' &&
-             /APPROVED/.test(els.pilotPanelMsg.textContent) &&
+             els.pilotPanelMsg.textContent === '' &&   /* toast + button carry success; no status line */
              toastTitles.some(x => x === 'Forecast submitted to your VP') &&
              textsByClass(els.pilotToasts, 'd')
                .some(x => /Commit \$.*Best case \$.*decisions log/.test(x));
