@@ -865,9 +865,12 @@ function check(name, cond, detail) {
      made instead of adding a section. */
   /* Cap raised 13,500 -> 14,000 on 2026-08-07 for ONE deliberate scope
      addition: the revision-run rule in MAYA'S DEAL CALLS (the prompt-22
-     loop is a new run type, not accretion). Next raise needs a next reason. */
-  check('7x9 the prompt stays under 14,000 chars — accretion still fails the build',
-    SIBYL_PROMPT.length < 14000,
+     loop is a new run type, not accretion). Next raise needs a next reason.
+     Raised 14,000 -> 14,500 on 2026-08-08 for the user-authored
+     COMMUNICATION STYLE section (Opus 5 ran chatty and technical on the
+     first validated build — a tone contract is scope, not accretion). */
+  check('7x9 the prompt stays under 14,500 chars — accretion still fails the build',
+    SIBYL_PROMPT.length < 14500,
     SIBYL_PROMPT.length + ' chars');
   /* 7x10 (2026-08-07) — the missing-drift incidents: labels bundled into one
      numbered item get their trailing label dropped by the model. Every output

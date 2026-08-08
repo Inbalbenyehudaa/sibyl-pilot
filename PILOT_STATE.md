@@ -17,12 +17,15 @@ Inc 4 polish), Inc 6 at `f488921`. Keep it to ONE session at a time.
 | Course submission (FROZEN) | `../agentic-ai-capstone-develop-companion-v0.3` | `Inbalbenyehudaa/sibyl` | inbalbenyehudaa.github.io/sibyl/ | Frozen at `2a5f08e`. NEVER touched until submitted. D09+D10 remain; Week 8 deadline. |
 | Pilot (this folder) | `sibyl-pilot` | `Inbalbenyehudaa/sibyl-pilot` | inbalbenyehudaa.github.io/sibyl-pilot/ | P0–P3 ✅ · **P4 Inc 0–6 ✅ live-QA'd + deployed** · §56+§57 agent fixes ✅ · **431 checks green** · five-for-five evals ✅ 2026-08-08 |
 
-**Eval status: ⚠ OPEN DEBT (2026-08-08 later).** Five-for-five passed LIVE on 2026-08-08 on the
-§56+§57 build (EC-1/3/4/5 then EC-2) — but afterwards, on the user's instruction, **Stage 2
-moved to Opus 5** (`MODEL_SIBYL = 'claude-opus-5'`, commit `8efd457`; reverses §56-F4's
-"declined"; Stage 1 stays Sonnet 5). Per the model-change rule this requires a **live
-five-eval re-run (~19 calls, user runs) — NOT YET DONE.** The stub saga and the field-count
-saga remain closed (below).
+**Eval status: ⚠ OPEN DEBT (2026-08-08, third round).** Timeline: five-for-five passed on the
+§56+§57 Sonnet build → Stage 2 moved to **Opus 5** (`8efd457`) + §58 parse fix (`3978cd0`) →
+**five-for-five passed AGAIN on the Opus 5 + §58 build (user-confirmed 2026-08-08)** → then,
+on the user's instruction, a **COMMUNICATION STYLE section was added to `sibyl_prompt.md`**
+(after CONTEXT; tone: direct/concise, metrics-first, no per-deal confidence percentages, no
+technical jargon; 7x9 cap raised 14,000→14,500 for it). Per the prompt-change rule this
+requires a **live five-eval re-run — NOT YET DONE.** Watch item on that run: "avoid technical
+jargon" vs the mandatory citation tags — if citations drop, that bullet is the suspect. The
+stub saga and the field-count saga remain closed (below).
 
 ## Phase 4 — the Pilot view (IN PROGRESS)
 
