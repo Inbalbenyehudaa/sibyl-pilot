@@ -67,6 +67,12 @@ The Pilot surface then shows its pre-run state.
     challenged,                    // verdict is CHALLENGE_*
     confidence,                    // high | medium | low | ''
     wowChange, evidence: [], recommendedAction,
+    readingFields,                 // Inc 4 (additive, v1): the reviewer's nine labelled
+                                   // fields exactly as parsed — { deal_id, deal_name,
+                                   // rep_category, reviewer_category, verdict, confidence,
+                                   // wow_change, evidence, recommended_action }, each a
+                                   // string or null (field never arrived); the whole
+                                   // object is null when the reading did not parse
     mayaCall,                      // { action, category, reason, at } | null (from DEAL_GATE)
     finalCategory,                 // Maya's category if she ruled, else the applied one
     appliedCategory,               // what the last computed walk-up actually used
@@ -101,6 +107,9 @@ The Pilot surface then shows its pre-run state.
 
 ## Harness coverage
 
-`tools/verify_static.js` section 35 (35a–35h): null pre-run; calculator
+`tools/verify_static.js` section 35 (35a–35s): null pre-run; calculator
 mirroring; run-independent topdown numbers; deal/rep rollups; the decisions
-record; empty-state ↔ hero swap; headline content.
+record; empty-state ↔ hero swap; headline content; the walk-up panel and
+notes formatting (35i–35k); the per-deal review section (35l–35n); the deal
+drawer — nine fields 1:1, approve/edit/escalate through the console's own
+gate functions, close semantics (35o–35s).

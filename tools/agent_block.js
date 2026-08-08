@@ -5455,6 +5455,14 @@ function buildPilotModel() {
       wowChange: r ? String(r.wow_change || '') : '',
       evidence: r ? pilotEvidenceLines(r.evidence) : [],
       recommendedAction: r ? String(r.recommended_action || '') : '',
+      /* Inc 4 (additive, still v1) — the reviewer's nine labelled fields
+         exactly as they parsed, for the drawer's 1:1 rendering. null when
+         the reading did not parse; a field that never arrived is null. */
+      readingFields: r ? (function () {
+        const o = {};
+        READING_FIELDS.forEach(f => { o[f] = r[f] === undefined ? null : String(r[f]); });
+        return o;
+      })() : null,
       mayaCall: g && g.action
         ? { action: g.action, category: g.category || '', reason: g.reason || '', at: g.at || '' }
         : null,
@@ -5811,6 +5819,8 @@ function renderPilotDeals(host, m) {
       repDeals.forEach(d => {
         const tr = pilotEl('tr', 'pilot-deal-row');
         tr.setAttribute('data-deal', d.id);
+        /* Inc 4 — the row IS the door to the drawer. */
+        tr.addEventListener('click', function () { pilotOpenDrawer(d.id); });
         const nameTd = pilotEl('td', '');
         nameTd.appendChild(pilotEl('span', 'pilot-deal-name', d.name));
         nameTd.appendChild(pilotEl('span', 'pilot-deal-id', d.id));
@@ -5841,6 +5851,214 @@ function renderPilotSections(host, m) {
   renderPilotDeals(host, m);
 }
 
+/* ---- Inc 4: the deal drawer ----------------------------------------
+   A slide-over opened from a deal row. It shows the reviewer's nine
+   labelled fields EXACTLY as they parsed, and records Maya's call through
+   the SAME functions the console uses (dealApprove / dealEdit /
+   dealEscalate) — one door, two surfaces, one DEAL_GATE, one persistence
+   path. The form state lives here so it survives the re-renders every
+   recorded action triggers. */
+
+let PILOT_DRAWER = null;
+
+function pilotOpenDrawer(id) {
+  const c = dealGateContext(id);
+  if (!c) return;
+  const g = DEAL_GATE[id];
+  PILOT_DRAWER = { id: id, cat: (g && g.category) || c.resolved, reason: '',
+                   toSibyl: false, toRep: false, msg: '', tone: '' };
+  renderPilot();
+}
+
+function pilotCloseDrawer() {
+  if (!PILOT_DRAWER) return;
+  PILOT_DRAWER = null;
+  renderPilot();
+}
+
+/* Every drawer button lands here. The record functions already validate
+   (category picked, reason on an escalation) and their messages are the
+   drawer's messages — the console and the drawer cannot phrase an outcome
+   differently. */
+function pilotDealAction(act) {
+  const s = PILOT_DRAWER;
+  if (!s) return null;
+  let r;
+  if (act === 'approve') {
+    r = dealApprove(s.id);
+  } else if (act === 'edit') {
+    r = dealEdit(s.id, s.cat, s.reason);
+  } else if (act === 'escalate') {
+    const to = [];
+    if (s.toSibyl) to.push('sibyl');
+    if (s.toRep) to.push('rep');
+    r = dealEscalate(s.id, s.cat, s.reason, to);
+  } else {
+    return null;
+  }
+  s.msg = r.ok ? r.message : r.error;
+  s.tone = r.ok ? 'ok' : 'warn';
+  if (r.ok) {
+    /* The same repaint pair the console's handler uses — the run log and
+       every deal surface (renderDealGate ends by re-rendering the pilot,
+       drawer included). */
+    renderRunLog();
+    renderDealGate();
+  } else {
+    renderPilot();
+  }
+  return r;
+}
+
+function renderPilotDrawer(m) {
+  const drawer = document.getElementById('pilotDrawer');
+  const scrim = document.getElementById('pilotDrawerScrim');
+  if (!drawer || !scrim) return;
+  const s = PILOT_DRAWER;
+  const d = s && m ? m.deals.filter(x => x.id === s.id)[0] : null;
+  if (!d) {
+    scrim.style.display = 'none';
+    drawer.className = 'pilot-drawer';
+    drawer.textContent = '';
+    return;
+  }
+  scrim.style.display = '';
+  drawer.className = 'pilot-drawer open';
+  drawer.textContent = '';
+
+  /* head — the deal, at a glance */
+  const head = pilotEl('div', 'pilot-drawer-head');
+  const toprow = pilotEl('div', 'pilot-drawer-toprow');
+  toprow.appendChild(pilotEl('p', 'pilot-eyebrow', 'Deal review'));
+  const close = pilotEl('button', 'pilot-edit-link', 'Close');
+  close.type = 'button';
+  close.id = 'pilotDrawerClose';
+  close.addEventListener('click', pilotCloseDrawer);
+  toprow.appendChild(close);
+  head.appendChild(toprow);
+  head.appendChild(pilotEl('h2', 'pilot-drawer-title', d.name));
+  head.appendChild(pilotEl('p', 'pilot-drawer-sub',
+    d.id + ' · ' + moneyShort(d.amount) + ' · ' + d.stage + ' · close ' + d.closeDate +
+    ' · ' + d.rep));
+  const chips = pilotEl('div', 'pilot-drawer-chiprow');
+  chips.appendChild(pilotVerdictChip(d));
+  if (d.confidence) {
+    chips.appendChild(pilotEl('span', 'pilot-confirm', 'confidence ' + d.confidence));
+  }
+  head.appendChild(chips);
+  drawer.appendChild(head);
+
+  /* the nine labelled fields — exact 1:1 with the reviewer contract */
+  const fields = pilotEl('div', 'pilot-drawer-fields');
+  fields.appendChild(pilotEl('p', 'pilot-note-label',
+    'Sibyl\'s reading — the nine labelled fields'));
+  if (d.readingFields) {
+    READING_FIELDS.forEach(f => {
+      const v = d.readingFields[f];
+      const row = pilotEl('div', 'pilot-field' + (v === null ? ' absent' : ''));
+      row.appendChild(pilotEl('p', 'k', f));
+      if (f === 'evidence' && v) {
+        const host = pilotEl('div', 'v');
+        pilotEvidenceLines(v).forEach(b => host.appendChild(pilotEl('p', 'pilot-ev', b)));
+        row.appendChild(host);
+      } else {
+        row.appendChild(pilotEl('p', 'v',
+          v === null ? '(field never arrived)' : plainValue(v)));
+      }
+      fields.appendChild(row);
+    });
+  } else {
+    fields.appendChild(pilotEl('p', 'pilot-drawer-warn',
+      'The nine labelled fields did not parse for this deal — the console\'s deal view ' +
+      'shows the raw reply.'));
+  }
+  drawer.appendChild(fields);
+
+  /* your call — the human gate, the same one the console records through */
+  const call = pilotEl('div', 'pilot-drawer-call');
+  call.appendChild(pilotEl('p', 'pilot-note-label', 'Your call'));
+  if (d.mayaCall) {
+    call.appendChild(pilotEl('p', 'pilot-drawer-status',
+      d.mayaCall.action + ' — ' + (d.mayaCall.category || '') +
+      (d.mayaCall.reason ? ' · ' + d.mayaCall.reason : '') +
+      (d.mayaCall.at ? ' · ' + d.mayaCall.at : '')));
+  } else {
+    call.appendChild(pilotEl('p', 'pilot-drawer-status mute',
+      'No call recorded — the reviewer\'s ' + d.reviewerCategory + ' stands.'));
+  }
+  if (d.pendingRecalc) {
+    call.appendChild(pilotEl('p', 'pilot-pending',
+      'Recorded, pending re-calculation — the walk-up still uses ' + d.appliedCategory + '.'));
+  }
+
+  const act1 = pilotEl('div', 'pilot-drawer-actions');
+  const approve = pilotEl('button', 'btn primary', 'Approve');
+  approve.type = 'button';
+  approve.id = 'pilotDealApprove';
+  approve.addEventListener('click', function () { pilotDealAction('approve'); });
+  act1.appendChild(approve);
+
+  const sel = document.createElement('select');
+  sel.id = 'pilotDealCat';
+  sel.setAttribute('aria-label', 'Forecast category');
+  DEAL_CATEGORIES.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x;
+    o.textContent = x;
+    if (x === s.cat) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', function () { s.cat = sel.value; });
+  act1.appendChild(sel);
+
+  const save = pilotEl('button', 'btn', 'Save category');
+  save.type = 'button';
+  save.id = 'pilotDealEdit';
+  save.addEventListener('click', function () { pilotDealAction('edit'); });
+  act1.appendChild(save);
+  call.appendChild(act1);
+
+  const reason = document.createElement('input');
+  reason.type = 'text';
+  reason.id = 'pilotDealReason';
+  reason.className = 'pilot-drawer-reason';
+  reason.placeholder = 'one line — required to escalate, optional on an edit';
+  reason.value = s.reason;
+  reason.setAttribute('aria-label', 'Reason');
+  reason.addEventListener('input', function () { s.reason = reason.value; });
+  call.appendChild(reason);
+
+  const act2 = pilotEl('div', 'pilot-drawer-actions');
+  const mkChk = (idAttr, label, key) => {
+    const lab = pilotEl('label', 'pilot-drawer-chk');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = idAttr;
+    box.checked = s[key];
+    box.addEventListener('change', function () { s[key] = box.checked; });
+    lab.appendChild(box);
+    lab.appendChild(pilotEl('span', '', label));
+    return lab;
+  };
+  act2.appendChild(mkChk('pilotDealToSibyl', 'to Sibyl', 'toSibyl'));
+  act2.appendChild(mkChk('pilotDealToRep', 'note for rep', 'toRep'));
+  const esc = pilotEl('button', 'btn danger', 'Escalate');
+  esc.type = 'button';
+  esc.id = 'pilotDealEscalate';
+  esc.addEventListener('click', function () { pilotDealAction('escalate'); });
+  act2.appendChild(esc);
+  call.appendChild(act2);
+
+  if (s.msg) {
+    const msg = pilotEl('p', 'pilot-panel-msg ' + s.tone, s.msg);
+    msg.id = 'pilotDealMsg';
+    call.appendChild(msg);
+  }
+  call.appendChild(pilotEl('p', 'boundary-note',
+    'Nothing is sent without human approval.'));
+  drawer.appendChild(call);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
@@ -5856,6 +6074,10 @@ function renderPilot() {
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
     if (sections) sections.textContent = '';
+    /* No run, no drawer — and no stale drawer state that would pop back
+       open on the next run. */
+    PILOT_DRAWER = null;
+    renderPilotDrawer(null);
     return;
   }
   empty.style.display = 'none';
@@ -5864,6 +6086,7 @@ function renderPilot() {
   if (main) main.style.display = '';
   if (panel) renderPilotPanel(panel, m);
   if (sections) renderPilotSections(sections, m);
+  renderPilotDrawer(m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +

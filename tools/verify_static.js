@@ -46,6 +46,7 @@ function stubEl() {
 const els = {};
 global.document = {
   documentElement: stubEl(),
+  addEventListener() {},
   getElementById(id) { return els[id] || (els[id] = stubEl()); },
   createElement() { return stubEl(); },
   querySelectorAll() { return []; }
@@ -325,6 +326,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   'buildDataStore, EMBEDDED_SOURCES, resolveDataMode, SIBYL_FIELDS, ' +
   'mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, ' +
   'setLastRun: (v) => { LAST_RUN = v; }, ' +
+  'setLastReadings: (v) => { LAST_READINGS = v; }, ' +
   'setWorkState, renderWorkState, PRODUCT_LINE, getWorkState: () => WORK_STATE, ' +
   'EVAL_CHIPS, loadEvalCase, renderEvalChips, setFault, clearFault, sourceMissing, ' +
   'lastWeekRows, getFault: () => EVAL_FAULT, missingRunSources, RUN_CRITICAL_SOURCES, ' +
@@ -347,6 +349,7 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
+  'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
         buildReviewerMessage, computeWalkUp, callSibyl, splitReading, money,
@@ -366,6 +369,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         citeVocab, auditCitations, citationCheck, citationTags, CITE_REQUIRED_FIELDS,
         buildDataStore, EMBEDDED_SOURCES, resolveDataMode, SIBYL_FIELDS,
         mayaDecisions, pinnedMismatch, recalcReady, updateRecalcButton, postPilotDecision, setLastRun,
+        setLastReadings,
         REVIEWER_PROMPT,
         runWeeklyForecast, RUN_LOG, runLogRows, pendingCount, currentCaseLabel,
         gateApprove, gateSaveEdit, gateEscalate, gateComplete, gateStatus, closeGate,
@@ -377,6 +381,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
+        pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
 globalThis.OPEN_DEALS = OPEN_DEALS;
@@ -2116,7 +2121,8 @@ function check(name, cond, detail) {
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState',
     'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
-    'worldcheckRoot', 'pilotEmpty', 'pilotHero', 'pilotMain', 'pilotPanel', 'pilotSections'];
+    'worldcheckRoot', 'pilotEmpty', 'pilotHero', 'pilotMain', 'pilotPanel', 'pilotSections',
+    'pilotDrawer', 'pilotDrawerScrim'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
   check('21g every element the agent code writes into survived the rebuild',
     missingIds.length === 0, missingIds.join(', ') || IDS.length + ' ids present');
@@ -3302,6 +3308,11 @@ function check(name, cond, detail) {
             values: { forecast_notes: 'notes35', sibyl_reading: 'read35' } },
     refusal: { refused: false }, readings: p35readings, walk: p35walk,
     text: '', decisions: p35decisions });
+  /* A real run sets LAST_READINGS alongside LAST_RUN — the console's deal
+     surfaces (summary counts, resolved categories) read it. Without it the
+     fixture's gate actions resolve against the REP categories while the
+     walk applied the reviewer's, and the two surfaces disagree. */
+  setLastReadings(p35readings);
   closeGate();   /* earlier sections may have left a gate open — the fixture is gate-less */
   const m35 = buildPilotModel();
   check('35b every model number is the calculator\'s, not its own arithmetic',
@@ -3390,6 +3401,69 @@ function check(name, cond, detail) {
       m35.numbers.challengedCount &&
     countByClass(els.pilotRepGroups, 'pilot-deal-row') === m35.deals.length,
     m35.numbers.challengedCount + ' challenge chips over ' + m35.deals.length + ' rows');
+  /* 35o-35s — P4 Inc 4: the deal drawer. Opened from a row, it renders the
+     reviewer's nine labelled fields 1:1 and records Maya's call through the
+     SAME functions the console uses — one door, two surfaces, one gate. */
+  const textsByClass = (node, cls) => {
+    const out = [];
+    (node.children || []).forEach(c => {
+      if (c.className && c.className.split(' ').indexOf(cls) !== -1) out.push(c.textContent);
+      textsByClass(c, cls).forEach(t => out.push(t));
+    });
+    return out;
+  };
+  const d35a = m35.deals.filter(d => d.readingFields)[0];
+  pilotOpenDrawer(d35a.id);
+  check('35o the drawer opens from a row with the nine labelled fields, exact 1:1',
+    els.pilotDrawer.className === 'pilot-drawer open' &&
+    els.pilotDrawerScrim.style.display === '' &&
+    countByClass(els.pilotDrawer, 'pilot-field') === READING_FIELDS.length &&
+    textsByClass(els.pilotDrawer, 'k').join('|') === READING_FIELDS.join('|'),
+    d35a.id + ' · ' + countByClass(els.pilotDrawer, 'pilot-field') + ' field rows');
+  check('35p Approve in the drawer records through the console\'s own gate functions',
+    (() => {
+      const r = pilotDealAction('approve');
+      return r && r.ok && DEAL_GATE[d35a.id].action === 'APPROVED' &&
+             /1 approved/.test(els.dealGateSummary.textContent) &&
+             /APPROVED/.test(els.pilotDealMsg.textContent);
+    })(),
+    d35a.id + ' · ' + els.dealGateSummary.textContent);
+  check('35q an edit lands in DEAL_GATE and the contract marks it pending re-calculation',
+    (() => {
+      const s = getPilotDrawer();
+      const cur = DEAL_GATE[d35a.id].category;
+      const alt = DEAL_CATEGORIES.filter(x => x !== cur)[0];
+      s.cat = alt;
+      s.reason = 'harness drawer edit';
+      const r = pilotDealAction('edit');
+      const dd = buildPilotModel().deals.filter(x => x.id === d35a.id)[0];
+      return r && r.ok && DEAL_GATE[d35a.id].action === 'EDITED' &&
+             DEAL_GATE[d35a.id].category === alt &&
+             dd.finalCategory === alt && dd.pendingRecalc === true;
+    })(),
+    DEAL_GATE[d35a.id].category + ' recorded, walk-up still on the run\'s category');
+  const d35b = m35.deals.filter(d => d.readingFields && d.id !== d35a.id)[0];
+  pilotOpenDrawer(d35b.id);
+  check('35r an escalation is refused without a reason, recorded with one, note drafted for the rep',
+    (() => {
+      const s = getPilotDrawer();
+      s.toRep = true;
+      const bad = pilotDealAction('escalate');
+      if (!bad || bad.ok || getPilotDrawer().tone !== 'warn') return false;
+      getPilotDrawer().reason = 'harness drawer escalation';
+      const good = pilotDealAction('escalate');
+      return good && good.ok && DEAL_GATE[d35b.id].action === 'ESCALATED' &&
+             repNotesPending().some(n => n.id === d35b.id);
+    })(),
+    d35b.id + ' · refused first, then ESCALATED · rep note drafted');
+  check('35s closing the drawer clears it — scrim gone, panel emptied, state null',
+    (() => {
+      pilotCloseDrawer();
+      return getPilotDrawer() === null &&
+             els.pilotDrawerScrim.style.display === 'none' &&
+             els.pilotDrawer.className === 'pilot-drawer' &&
+             els.pilotDrawer.children.length === 0;
+    })(), 'drawer closed');
   const p35entry = logRun('Weekly forecast · harness 35', 'panel gate');
   openGate(p35entry, 'harness draft', 'draft');
   renderPilot();

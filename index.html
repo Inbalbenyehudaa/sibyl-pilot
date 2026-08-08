@@ -935,6 +935,56 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                      color: var(--warn); }
 .pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
+/* Inc 4 — the deal drawer. The row is the door; the drawer slides over
+   from the right and scrolls on its own. Token-only, no new colors. */
+.pilot-deal-row { cursor: pointer; }
+.pilot-deal-row:hover td { background: var(--bg-inset); }
+.pilot-drawer-scrim { position: fixed; inset: 0; z-index: 40;
+                      background: color-mix(in srgb, var(--ink) 32%, transparent); }
+.pilot-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
+                width: min(480px, 92vw); background: var(--bg-raise);
+                border-left: var(--border-w) solid var(--line);
+                box-shadow: var(--shadow-2, var(--shadow));
+                padding: var(--sp-5) var(--sp-5) var(--sp-7);
+                overflow-y: auto; transform: translateX(102%);
+                transition: transform .18s ease; }
+.pilot-drawer.open { transform: translateX(0); }
+.pilot-drawer-toprow { display: flex; justify-content: space-between;
+                       align-items: baseline; }
+.pilot-drawer-title { font-size: var(--fs-heading-lg); font-weight: var(--w-display);
+                      letter-spacing: var(--track-heading-lg); color: var(--ink);
+                      margin: var(--sp-2) 0 0; }
+.pilot-drawer-sub { font-size: var(--fs-0); color: var(--ink-3);
+                    font-variant-numeric: tabular-nums; margin: var(--sp-1) 0 0; }
+.pilot-drawer-chiprow { display: flex; align-items: center; gap: var(--sp-3);
+                        margin-top: var(--sp-3); }
+.pilot-drawer-fields { margin-top: var(--sp-5); }
+.pilot-field { display: grid; grid-template-columns: 150px minmax(0, 1fr);
+               gap: var(--sp-3); padding: var(--sp-2) 0;
+               border-top: var(--border-w) solid var(--line); }
+.pilot-field .k { font-family: var(--font-mono); font-size: var(--fs-micro);
+                  color: var(--ink-3); margin: 0; overflow-wrap: anywhere; }
+.pilot-field .v { font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5;
+                  margin: 0; }
+.pilot-field.absent .v { color: var(--ink-3); }
+.pilot-ev { margin: 0 0 var(--sp-1); padding-left: var(--sp-3); position: relative;
+            font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5; }
+.pilot-ev::before { content: '·'; position: absolute; left: 0; color: var(--accent); }
+.pilot-drawer-call { margin-top: var(--sp-5); }
+.pilot-drawer-status { font-size: var(--fs-0); color: var(--ink); margin: 0 0 var(--sp-2); }
+.pilot-drawer-status.mute { color: var(--ink-3); }
+.pilot-drawer-warn { font-size: var(--fs-0); color: var(--warn); }
+.pilot-drawer-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2);
+                        align-items: center; margin-top: var(--sp-3); }
+.pilot-drawer-reason { width: 100%; margin-top: var(--sp-3);
+                       border: var(--border-w) solid var(--line);
+                       border-radius: var(--radius-sm); background: var(--bg-inset);
+                       font-family: var(--font-body); font-size: var(--fs-0);
+                       color: var(--ink); padding: var(--sp-2) var(--sp-3); }
+.pilot-drawer-reason:focus { outline: none; border-color: var(--accent); }
+.pilot-drawer-chk { display: inline-flex; align-items: center; gap: var(--sp-1);
+                    font-size: var(--fs-0); color: var(--ink-2); }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -1161,6 +1211,10 @@ body { overflow-x: hidden; }
       <div id="pilotSections"></div>
     </div>
   </div>
+  <!-- P4 Inc 4 — the deal drawer: a slide-over opened from a deal row.
+       Fixed-position, but INSIDE #viewPilot so the Console tab hides it. -->
+  <div id="pilotDrawerScrim" class="pilot-drawer-scrim" style="display:none"></div>
+  <aside id="pilotDrawer" class="pilot-drawer" aria-label="Deal review"></aside>
 </div>
 
 <div class="worldcheck" id="worldcheckRoot">
@@ -15947,6 +16001,14 @@ function buildPilotModel() {
       wowChange: r ? String(r.wow_change || '') : '',
       evidence: r ? pilotEvidenceLines(r.evidence) : [],
       recommendedAction: r ? String(r.recommended_action || '') : '',
+      /* Inc 4 (additive, still v1) — the reviewer's nine labelled fields
+         exactly as they parsed, for the drawer's 1:1 rendering. null when
+         the reading did not parse; a field that never arrived is null. */
+      readingFields: r ? (function () {
+        const o = {};
+        READING_FIELDS.forEach(f => { o[f] = r[f] === undefined ? null : String(r[f]); });
+        return o;
+      })() : null,
       mayaCall: g && g.action
         ? { action: g.action, category: g.category || '', reason: g.reason || '', at: g.at || '' }
         : null,
@@ -16303,6 +16365,8 @@ function renderPilotDeals(host, m) {
       repDeals.forEach(d => {
         const tr = pilotEl('tr', 'pilot-deal-row');
         tr.setAttribute('data-deal', d.id);
+        /* Inc 4 — the row IS the door to the drawer. */
+        tr.addEventListener('click', function () { pilotOpenDrawer(d.id); });
         const nameTd = pilotEl('td', '');
         nameTd.appendChild(pilotEl('span', 'pilot-deal-name', d.name));
         nameTd.appendChild(pilotEl('span', 'pilot-deal-id', d.id));
@@ -16333,6 +16397,214 @@ function renderPilotSections(host, m) {
   renderPilotDeals(host, m);
 }
 
+/* ---- Inc 4: the deal drawer ----------------------------------------
+   A slide-over opened from a deal row. It shows the reviewer's nine
+   labelled fields EXACTLY as they parsed, and records Maya's call through
+   the SAME functions the console uses (dealApprove / dealEdit /
+   dealEscalate) — one door, two surfaces, one DEAL_GATE, one persistence
+   path. The form state lives here so it survives the re-renders every
+   recorded action triggers. */
+
+let PILOT_DRAWER = null;
+
+function pilotOpenDrawer(id) {
+  const c = dealGateContext(id);
+  if (!c) return;
+  const g = DEAL_GATE[id];
+  PILOT_DRAWER = { id: id, cat: (g && g.category) || c.resolved, reason: '',
+                   toSibyl: false, toRep: false, msg: '', tone: '' };
+  renderPilot();
+}
+
+function pilotCloseDrawer() {
+  if (!PILOT_DRAWER) return;
+  PILOT_DRAWER = null;
+  renderPilot();
+}
+
+/* Every drawer button lands here. The record functions already validate
+   (category picked, reason on an escalation) and their messages are the
+   drawer's messages — the console and the drawer cannot phrase an outcome
+   differently. */
+function pilotDealAction(act) {
+  const s = PILOT_DRAWER;
+  if (!s) return null;
+  let r;
+  if (act === 'approve') {
+    r = dealApprove(s.id);
+  } else if (act === 'edit') {
+    r = dealEdit(s.id, s.cat, s.reason);
+  } else if (act === 'escalate') {
+    const to = [];
+    if (s.toSibyl) to.push('sibyl');
+    if (s.toRep) to.push('rep');
+    r = dealEscalate(s.id, s.cat, s.reason, to);
+  } else {
+    return null;
+  }
+  s.msg = r.ok ? r.message : r.error;
+  s.tone = r.ok ? 'ok' : 'warn';
+  if (r.ok) {
+    /* The same repaint pair the console's handler uses — the run log and
+       every deal surface (renderDealGate ends by re-rendering the pilot,
+       drawer included). */
+    renderRunLog();
+    renderDealGate();
+  } else {
+    renderPilot();
+  }
+  return r;
+}
+
+function renderPilotDrawer(m) {
+  const drawer = document.getElementById('pilotDrawer');
+  const scrim = document.getElementById('pilotDrawerScrim');
+  if (!drawer || !scrim) return;
+  const s = PILOT_DRAWER;
+  const d = s && m ? m.deals.filter(x => x.id === s.id)[0] : null;
+  if (!d) {
+    scrim.style.display = 'none';
+    drawer.className = 'pilot-drawer';
+    drawer.textContent = '';
+    return;
+  }
+  scrim.style.display = '';
+  drawer.className = 'pilot-drawer open';
+  drawer.textContent = '';
+
+  /* head — the deal, at a glance */
+  const head = pilotEl('div', 'pilot-drawer-head');
+  const toprow = pilotEl('div', 'pilot-drawer-toprow');
+  toprow.appendChild(pilotEl('p', 'pilot-eyebrow', 'Deal review'));
+  const close = pilotEl('button', 'pilot-edit-link', 'Close');
+  close.type = 'button';
+  close.id = 'pilotDrawerClose';
+  close.addEventListener('click', pilotCloseDrawer);
+  toprow.appendChild(close);
+  head.appendChild(toprow);
+  head.appendChild(pilotEl('h2', 'pilot-drawer-title', d.name));
+  head.appendChild(pilotEl('p', 'pilot-drawer-sub',
+    d.id + ' · ' + moneyShort(d.amount) + ' · ' + d.stage + ' · close ' + d.closeDate +
+    ' · ' + d.rep));
+  const chips = pilotEl('div', 'pilot-drawer-chiprow');
+  chips.appendChild(pilotVerdictChip(d));
+  if (d.confidence) {
+    chips.appendChild(pilotEl('span', 'pilot-confirm', 'confidence ' + d.confidence));
+  }
+  head.appendChild(chips);
+  drawer.appendChild(head);
+
+  /* the nine labelled fields — exact 1:1 with the reviewer contract */
+  const fields = pilotEl('div', 'pilot-drawer-fields');
+  fields.appendChild(pilotEl('p', 'pilot-note-label',
+    'Sibyl\'s reading — the nine labelled fields'));
+  if (d.readingFields) {
+    READING_FIELDS.forEach(f => {
+      const v = d.readingFields[f];
+      const row = pilotEl('div', 'pilot-field' + (v === null ? ' absent' : ''));
+      row.appendChild(pilotEl('p', 'k', f));
+      if (f === 'evidence' && v) {
+        const host = pilotEl('div', 'v');
+        pilotEvidenceLines(v).forEach(b => host.appendChild(pilotEl('p', 'pilot-ev', b)));
+        row.appendChild(host);
+      } else {
+        row.appendChild(pilotEl('p', 'v',
+          v === null ? '(field never arrived)' : plainValue(v)));
+      }
+      fields.appendChild(row);
+    });
+  } else {
+    fields.appendChild(pilotEl('p', 'pilot-drawer-warn',
+      'The nine labelled fields did not parse for this deal — the console\'s deal view ' +
+      'shows the raw reply.'));
+  }
+  drawer.appendChild(fields);
+
+  /* your call — the human gate, the same one the console records through */
+  const call = pilotEl('div', 'pilot-drawer-call');
+  call.appendChild(pilotEl('p', 'pilot-note-label', 'Your call'));
+  if (d.mayaCall) {
+    call.appendChild(pilotEl('p', 'pilot-drawer-status',
+      d.mayaCall.action + ' — ' + (d.mayaCall.category || '') +
+      (d.mayaCall.reason ? ' · ' + d.mayaCall.reason : '') +
+      (d.mayaCall.at ? ' · ' + d.mayaCall.at : '')));
+  } else {
+    call.appendChild(pilotEl('p', 'pilot-drawer-status mute',
+      'No call recorded — the reviewer\'s ' + d.reviewerCategory + ' stands.'));
+  }
+  if (d.pendingRecalc) {
+    call.appendChild(pilotEl('p', 'pilot-pending',
+      'Recorded, pending re-calculation — the walk-up still uses ' + d.appliedCategory + '.'));
+  }
+
+  const act1 = pilotEl('div', 'pilot-drawer-actions');
+  const approve = pilotEl('button', 'btn primary', 'Approve');
+  approve.type = 'button';
+  approve.id = 'pilotDealApprove';
+  approve.addEventListener('click', function () { pilotDealAction('approve'); });
+  act1.appendChild(approve);
+
+  const sel = document.createElement('select');
+  sel.id = 'pilotDealCat';
+  sel.setAttribute('aria-label', 'Forecast category');
+  DEAL_CATEGORIES.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x;
+    o.textContent = x;
+    if (x === s.cat) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', function () { s.cat = sel.value; });
+  act1.appendChild(sel);
+
+  const save = pilotEl('button', 'btn', 'Save category');
+  save.type = 'button';
+  save.id = 'pilotDealEdit';
+  save.addEventListener('click', function () { pilotDealAction('edit'); });
+  act1.appendChild(save);
+  call.appendChild(act1);
+
+  const reason = document.createElement('input');
+  reason.type = 'text';
+  reason.id = 'pilotDealReason';
+  reason.className = 'pilot-drawer-reason';
+  reason.placeholder = 'one line — required to escalate, optional on an edit';
+  reason.value = s.reason;
+  reason.setAttribute('aria-label', 'Reason');
+  reason.addEventListener('input', function () { s.reason = reason.value; });
+  call.appendChild(reason);
+
+  const act2 = pilotEl('div', 'pilot-drawer-actions');
+  const mkChk = (idAttr, label, key) => {
+    const lab = pilotEl('label', 'pilot-drawer-chk');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = idAttr;
+    box.checked = s[key];
+    box.addEventListener('change', function () { s[key] = box.checked; });
+    lab.appendChild(box);
+    lab.appendChild(pilotEl('span', '', label));
+    return lab;
+  };
+  act2.appendChild(mkChk('pilotDealToSibyl', 'to Sibyl', 'toSibyl'));
+  act2.appendChild(mkChk('pilotDealToRep', 'note for rep', 'toRep'));
+  const esc = pilotEl('button', 'btn danger', 'Escalate');
+  esc.type = 'button';
+  esc.id = 'pilotDealEscalate';
+  esc.addEventListener('click', function () { pilotDealAction('escalate'); });
+  act2.appendChild(esc);
+  call.appendChild(act2);
+
+  if (s.msg) {
+    const msg = pilotEl('p', 'pilot-panel-msg ' + s.tone, s.msg);
+    msg.id = 'pilotDealMsg';
+    call.appendChild(msg);
+  }
+  call.appendChild(pilotEl('p', 'boundary-note',
+    'Nothing is sent without human approval.'));
+  drawer.appendChild(call);
+}
+
 function renderPilot() {
   const empty = document.getElementById('pilotEmpty');
   const hero = document.getElementById('pilotHero');
@@ -16348,6 +16620,10 @@ function renderPilot() {
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
     if (sections) sections.textContent = '';
+    /* No run, no drawer — and no stale drawer state that would pop back
+       open on the next run. */
+    PILOT_DRAWER = null;
+    renderPilotDrawer(null);
     return;
   }
   empty.style.display = 'none';
@@ -16356,6 +16632,7 @@ function renderPilot() {
   if (main) main.style.display = '';
   if (panel) renderPilotPanel(panel, m);
   if (sections) renderPilotSections(sections, m);
+  renderPilotDrawer(m);
 
   const meta = pilotEl('div', 'pilot-meta');
   meta.appendChild(pilotEl('span', '', 'Vantera · ' + m.meta.manager + ' · week ' + m.meta.week +
@@ -16849,6 +17126,13 @@ document.getElementById('topTabs').addEventListener('click', function (ev) {
 });
 document.getElementById('pilotRun').addEventListener('click', function () {
   runWeeklyForecast(this);
+});
+/* Inc 4 — closing the drawer: the scrim, or Escape anywhere. */
+document.getElementById('pilotDrawerScrim').addEventListener('click', function () {
+  pilotCloseDrawer();
+});
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Escape') pilotCloseDrawer();
 });
 
 /* ------------------------------------------------------------------ */

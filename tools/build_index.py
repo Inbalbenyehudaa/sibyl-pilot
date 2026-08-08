@@ -646,6 +646,56 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
                      color: var(--warn); }
 .pilot-confirm { font-size: var(--fs-0); color: var(--ink-3); }
 
+/* Inc 4 — the deal drawer. The row is the door; the drawer slides over
+   from the right and scrolls on its own. Token-only, no new colors. */
+.pilot-deal-row { cursor: pointer; }
+.pilot-deal-row:hover td { background: var(--bg-inset); }
+.pilot-drawer-scrim { position: fixed; inset: 0; z-index: 40;
+                      background: color-mix(in srgb, var(--ink) 32%, transparent); }
+.pilot-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
+                width: min(480px, 92vw); background: var(--bg-raise);
+                border-left: var(--border-w) solid var(--line);
+                box-shadow: var(--shadow-2, var(--shadow));
+                padding: var(--sp-5) var(--sp-5) var(--sp-7);
+                overflow-y: auto; transform: translateX(102%);
+                transition: transform .18s ease; }
+.pilot-drawer.open { transform: translateX(0); }
+.pilot-drawer-toprow { display: flex; justify-content: space-between;
+                       align-items: baseline; }
+.pilot-drawer-title { font-size: var(--fs-heading-lg); font-weight: var(--w-display);
+                      letter-spacing: var(--track-heading-lg); color: var(--ink);
+                      margin: var(--sp-2) 0 0; }
+.pilot-drawer-sub { font-size: var(--fs-0); color: var(--ink-3);
+                    font-variant-numeric: tabular-nums; margin: var(--sp-1) 0 0; }
+.pilot-drawer-chiprow { display: flex; align-items: center; gap: var(--sp-3);
+                        margin-top: var(--sp-3); }
+.pilot-drawer-fields { margin-top: var(--sp-5); }
+.pilot-field { display: grid; grid-template-columns: 150px minmax(0, 1fr);
+               gap: var(--sp-3); padding: var(--sp-2) 0;
+               border-top: var(--border-w) solid var(--line); }
+.pilot-field .k { font-family: var(--font-mono); font-size: var(--fs-micro);
+                  color: var(--ink-3); margin: 0; overflow-wrap: anywhere; }
+.pilot-field .v { font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5;
+                  margin: 0; }
+.pilot-field.absent .v { color: var(--ink-3); }
+.pilot-ev { margin: 0 0 var(--sp-1); padding-left: var(--sp-3); position: relative;
+            font-size: var(--fs-0); color: var(--ink-2); line-height: 1.5; }
+.pilot-ev::before { content: '·'; position: absolute; left: 0; color: var(--accent); }
+.pilot-drawer-call { margin-top: var(--sp-5); }
+.pilot-drawer-status { font-size: var(--fs-0); color: var(--ink); margin: 0 0 var(--sp-2); }
+.pilot-drawer-status.mute { color: var(--ink-3); }
+.pilot-drawer-warn { font-size: var(--fs-0); color: var(--warn); }
+.pilot-drawer-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2);
+                        align-items: center; margin-top: var(--sp-3); }
+.pilot-drawer-reason { width: 100%; margin-top: var(--sp-3);
+                       border: var(--border-w) solid var(--line);
+                       border-radius: var(--radius-sm); background: var(--bg-inset);
+                       font-family: var(--font-body); font-size: var(--fs-0);
+                       color: var(--ink); padding: var(--sp-2) var(--sp-3); }
+.pilot-drawer-reason:focus { outline: none; border-color: var(--accent); }
+.pilot-drawer-chk { display: inline-flex; align-items: center; gap: var(--sp-1);
+                    font-size: var(--fs-0); color: var(--ink-2); }
+
 .worldcheck { padding: 0 var(--sp-5) var(--sp-7); }
 .worldcheck > details > summary { font-size: var(--fs-1); }
 /* The world-check tables are the raw 56-column deal snapshots. They must scroll
@@ -872,6 +922,10 @@ body { overflow-x: hidden; }
       <div id="pilotSections"></div>
     </div>
   </div>
+  <!-- P4 Inc 4 — the deal drawer: a slide-over opened from a deal row.
+       Fixed-position, but INSIDE #viewPilot so the Console tab hides it. -->
+  <div id="pilotDrawerScrim" class="pilot-drawer-scrim" style="display:none"></div>
+  <aside id="pilotDrawer" class="pilot-drawer" aria-label="Deal review"></aside>
 </div>
 
 <div class="worldcheck" id="worldcheckRoot">
@@ -1644,6 +1698,13 @@ document.getElementById('topTabs').addEventListener('click', function (ev) {
 });
 document.getElementById('pilotRun').addEventListener('click', function () {
   runWeeklyForecast(this);
+});
+/* Inc 4 — closing the drawer: the scrim, or Escape anywhere. */
+document.getElementById('pilotDrawerScrim').addEventListener('click', function () {
+  pilotCloseDrawer();
+});
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Escape') pilotCloseDrawer();
 });
 
 /* ------------------------------------------------------------------ */
