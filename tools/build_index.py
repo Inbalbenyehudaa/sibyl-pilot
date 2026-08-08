@@ -478,7 +478,49 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
    layout grid; every value below resolves to a token. */
 .pilot-wrap { max-width: 1120px; margin: 0 auto;
               padding: var(--sp-5) var(--sp-6) var(--sp-7); }
-.pilot-empty { padding: var(--sp-7) 0; max-width: 720px; }
+.pilot-empty { padding: var(--sp-7) 0; max-width: 760px; }
+
+/* P4 Inc 6 — the Friday-ritual entry card: window chrome, headline, the
+   forecast_notes headline as subtitle, three stat tiles (only when a run or
+   hydrated snapshot exists), one filled CTA. */
+.pilot-entry-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+                    border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow));
+                    overflow: hidden; }
+.pilot-entry-chrome { display: flex; align-items: center; gap: var(--sp-2);
+                      padding: var(--sp-3) var(--sp-5);
+                      border-bottom: var(--border-w) solid var(--line);
+                      font-size: var(--fs-0); color: var(--ink-3);
+                      letter-spacing: var(--track-caption);
+                      font-variant-numeric: tabular-nums; }
+.pilot-entry-chrome span:last-child { margin-left: var(--sp-2); }
+.pilot-entry-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
+.pilot-entry-dot.a { background: var(--ruby); }
+.pilot-entry-dot.b { background: var(--lemon); }
+.pilot-entry-dot.c { background: var(--accent-subdued); }
+.pilot-entry-body { padding: var(--sp-6); }
+.pilot-entry-h { font-size: var(--fs-display-md); font-weight: var(--w-display);
+                 letter-spacing: var(--track-display-md); line-height: 1.12;
+                 color: var(--ink); margin: 0; }
+.pilot-entry-sub { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.55;
+                   margin: var(--sp-3) 0 0; }
+.pilot-entry-tiles { display: grid; grid-template-columns: repeat(3, 1fr);
+                     gap: var(--border-w); background: var(--line);
+                     border: var(--border-w) solid var(--line);
+                     border-radius: var(--radius-md); overflow: hidden;
+                     margin-top: var(--sp-5); }
+@media (max-width: 720px) { .pilot-entry-tiles { grid-template-columns: 1fr; } }
+.pilot-entry-tile { background: var(--bg-raise); padding: var(--sp-4) var(--sp-5); }
+.pilot-entry-tile .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                       letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                       color: var(--ink-3); margin: 0; }
+.pilot-entry-tile .v { font-size: var(--fs-heading-lg); font-weight: var(--w-display);
+                       letter-spacing: var(--track-heading-lg);
+                       font-variant-numeric: tabular-nums; color: var(--ink);
+                       margin: var(--sp-1) 0 0; }
+.pilot-entry-tile .s { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0;
+                       font-variant-numeric: tabular-nums; }
+.pilot-entry-actions { margin-top: var(--sp-5); display: flex; align-items: center;
+                       gap: var(--sp-3); }
 .pilot-eyebrow { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
                  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
                  color: var(--accent-deep, var(--accent)); }
@@ -956,13 +998,10 @@ body { overflow-x: hidden; }
      would ship it. Hidden until the Pilot tab is selected. -->
 <div id="viewPilot" style="display:none">
   <div class="pilot-wrap">
+    <!-- P4 Inc 6 — the entry state: the Friday-ritual card, built by
+         renderPilotEntry(). The boundary note stays static in the shell. -->
     <div id="pilotEmpty" class="pilot-empty">
-      <p class="pilot-eyebrow">Sibyl · pilot preview</p>
-      <p class="headline">The number you can defend.</p>
-      <p class="sub">Sibyl drafts the weekly forecast from health signals, CRM snapshots, the
-         week-over-week deltas and the decision record — every claim cited, and nothing
-         submitted without your call on it.</p>
-      <button type="button" id="pilotRun" class="btn primary">Run the weekly forecast</button>
+      <div id="pilotEntry"></div>
       <p class="boundary-note">Nothing is sent without human approval.</p>
     </div>
     <!-- The populated surface — built by renderPilot() from buildPilotModel(). -->
@@ -1751,9 +1790,8 @@ document.getElementById('topTabs').addEventListener('click', function (ev) {
   if (!tab) return;
   selectTab(tab.getAttribute('data-tab'));
 });
-document.getElementById('pilotRun').addEventListener('click', function () {
-  runWeeklyForecast(this);
-});
+/* P4 Inc 6 — the entry card's button is built per render (its label and
+   behaviour depend on run state), so its listener attaches at creation. */
 /* Inc 4 — closing the drawer: the scrim, or Escape anywhere. */
 document.getElementById('pilotDrawerScrim').addEventListener('click', function () {
   pilotCloseDrawer();

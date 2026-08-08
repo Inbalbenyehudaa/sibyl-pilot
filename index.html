@@ -767,7 +767,49 @@ p.hint.ok, p.hint.warn { font-size: var(--fs-0); }
    layout grid; every value below resolves to a token. */
 .pilot-wrap { max-width: 1120px; margin: 0 auto;
               padding: var(--sp-5) var(--sp-6) var(--sp-7); }
-.pilot-empty { padding: var(--sp-7) 0; max-width: 720px; }
+.pilot-empty { padding: var(--sp-7) 0; max-width: 760px; }
+
+/* P4 Inc 6 — the Friday-ritual entry card: window chrome, headline, the
+   forecast_notes headline as subtitle, three stat tiles (only when a run or
+   hydrated snapshot exists), one filled CTA. */
+.pilot-entry-card { background: var(--bg-raise); border: var(--border-w) solid var(--line);
+                    border-radius: var(--radius); box-shadow: var(--shadow-2, var(--shadow));
+                    overflow: hidden; }
+.pilot-entry-chrome { display: flex; align-items: center; gap: var(--sp-2);
+                      padding: var(--sp-3) var(--sp-5);
+                      border-bottom: var(--border-w) solid var(--line);
+                      font-size: var(--fs-0); color: var(--ink-3);
+                      letter-spacing: var(--track-caption);
+                      font-variant-numeric: tabular-nums; }
+.pilot-entry-chrome span:last-child { margin-left: var(--sp-2); }
+.pilot-entry-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex: none; }
+.pilot-entry-dot.a { background: var(--ruby); }
+.pilot-entry-dot.b { background: var(--lemon); }
+.pilot-entry-dot.c { background: var(--accent-subdued); }
+.pilot-entry-body { padding: var(--sp-6); }
+.pilot-entry-h { font-size: var(--fs-display-md); font-weight: var(--w-display);
+                 letter-spacing: var(--track-display-md); line-height: 1.12;
+                 color: var(--ink); margin: 0; }
+.pilot-entry-sub { font-size: var(--fs-1); color: var(--ink-2); line-height: 1.55;
+                   margin: var(--sp-3) 0 0; }
+.pilot-entry-tiles { display: grid; grid-template-columns: repeat(3, 1fr);
+                     gap: var(--border-w); background: var(--line);
+                     border: var(--border-w) solid var(--line);
+                     border-radius: var(--radius-md); overflow: hidden;
+                     margin-top: var(--sp-5); }
+@media (max-width: 720px) { .pilot-entry-tiles { grid-template-columns: 1fr; } }
+.pilot-entry-tile { background: var(--bg-raise); padding: var(--sp-4) var(--sp-5); }
+.pilot-entry-tile .k { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
+                       letter-spacing: var(--track-micro-cap); text-transform: uppercase;
+                       color: var(--ink-3); margin: 0; }
+.pilot-entry-tile .v { font-size: var(--fs-heading-lg); font-weight: var(--w-display);
+                       letter-spacing: var(--track-heading-lg);
+                       font-variant-numeric: tabular-nums; color: var(--ink);
+                       margin: var(--sp-1) 0 0; }
+.pilot-entry-tile .s { font-size: var(--fs-0); color: var(--ink-3); margin: 2px 0 0;
+                       font-variant-numeric: tabular-nums; }
+.pilot-entry-actions { margin-top: var(--sp-5); display: flex; align-items: center;
+                       gap: var(--sp-3); }
 .pilot-eyebrow { font-size: var(--fs-micro-cap); font-weight: var(--w-label);
                  letter-spacing: var(--track-micro-cap); text-transform: uppercase;
                  color: var(--accent-deep, var(--accent)); }
@@ -1245,13 +1287,10 @@ body { overflow-x: hidden; }
      would ship it. Hidden until the Pilot tab is selected. -->
 <div id="viewPilot" style="display:none">
   <div class="pilot-wrap">
+    <!-- P4 Inc 6 — the entry state: the Friday-ritual card, built by
+         renderPilotEntry(). The boundary note stays static in the shell. -->
     <div id="pilotEmpty" class="pilot-empty">
-      <p class="pilot-eyebrow">Sibyl · pilot preview</p>
-      <p class="headline">The number you can defend.</p>
-      <p class="sub">Sibyl drafts the weekly forecast from health signals, CRM snapshots, the
-         week-over-week deltas and the decision record — every claim cited, and nothing
-         submitted without your call on it.</p>
-      <button type="button" id="pilotRun" class="btn primary">Run the weekly forecast</button>
+      <div id="pilotEntry"></div>
       <p class="boundary-note">Nothing is sent without human approval.</p>
     </div>
     <!-- The populated surface — built by renderPilot() from buildPilotModel(). -->
@@ -16646,6 +16685,92 @@ function renderPilotSections(host, m) {
    path. The form state lives here so it survives the re-renders every
    recorded action triggers. */
 
+/* ---- Inc 6: the Friday-ritual entry state ---------------------------
+   The pilot tab lands on the "#forecast-maya" card, the way Maya would
+   receive the draft. With no run it invites the run; with a run (or a
+   hydrated snapshot) it carries the forecast_notes headline and three
+   stat tiles, and "Review forecast" reveals the dashboard. PILOT_ENTERED
+   is the gate — per page-load, orthogonal to the run state. */
+let PILOT_ENTERED = false;
+
+function pilotEnterReview() {
+  if (!buildPilotModel()) return;
+  PILOT_ENTERED = true;
+  renderPilot();
+}
+
+function renderPilotEntry(host, m) {
+  host.textContent = '';
+  const card = pilotEl('div', 'pilot-entry-card');
+
+  const chrome = pilotEl('div', 'pilot-entry-chrome');
+  ['a', 'b', 'c'].forEach(cl =>
+    chrome.appendChild(pilotEl('span', 'pilot-entry-dot ' + cl, '')));
+  const rows = DB['deals_current.csv'].rows;
+  chrome.appendChild(pilotEl('span', '',
+    '#forecast-maya · Friday 08:00 · week ' + (rows.length ? rows[0]['Forecast Week #'] : '?') +
+    ' · ' + (rows.length ? rows[0]['Snapshot Date'] : '?')));
+  card.appendChild(chrome);
+
+  const body = pilotEl('div', 'pilot-entry-body');
+  if (m && m.meta.revised) {
+    const pillrow = pilotEl('p', '', '');
+    pillrow.appendChild(pilotEl('span', 'pilot-pill', 'Revised · Maya\'s calls'));
+    body.appendChild(pillrow);
+  }
+  body.appendChild(pilotEl('h2', 'pilot-entry-h',
+    m ? 'Your weekly forecast draft is ready, Maya.'
+      : 'Good morning, Maya — Friday\'s draft is one click away.'));
+  if (m) {
+    /* The user-requested subtitle: the forecast_notes headline, verbatim. */
+    const first = String(m.prose.forecastNotes || '').split('\n')
+      .map(s => s.trim()).filter(Boolean)[0];
+    if (first) body.appendChild(pilotEl('p', 'pilot-entry-sub', plainValue(first)));
+    if (m.meta.restored) {
+      body.appendChild(pilotEl('p', 'hint', 'Restored from the pilot decisions log.'));
+    }
+    const tiles = pilotEl('div', 'pilot-entry-tiles');
+    [
+      { k: 'Changed vs last week', v: pilotSigned(m.numbers.deltaFromLastWeek),
+        s: m.numbers.lastSubmitted
+          ? 'Your last submission ' + moneyShort(m.numbers.lastSubmitted.value) +
+            ' · Sibyl ' + moneyShort(m.numbers.suggestedForecast)
+          : 'Sibyl ' + moneyShort(m.numbers.suggestedForecast) },
+      { k: 'Drift from team total', v: pilotSigned(m.numbers.drift),
+        s: 'Team ' + moneyShort(m.numbers.teamBottomsUp) +
+           ' · Sibyl ' + moneyShort(m.numbers.suggestedForecast) },
+      { k: 'Worth challenging',
+        v: m.numbers.challengedCount + ' deal' + (m.numbers.challengedCount === 1 ? '' : 's'),
+        s: moneyShort(m.numbers.challengedAmount) + ' under challenge' }
+    ].forEach(t => {
+      const tile = pilotEl('div', 'pilot-entry-tile');
+      tile.appendChild(pilotEl('p', 'k', t.k));
+      tile.appendChild(pilotEl('p', 'v', t.v));
+      tile.appendChild(pilotEl('p', 's', t.s));
+      tiles.appendChild(tile);
+    });
+    body.appendChild(tiles);
+  } else {
+    body.appendChild(pilotEl('p', 'pilot-entry-sub',
+      'Sibyl reads the CRM snapshot, the health signals, the week-over-week deltas and the ' +
+      'decision record, then drafts a number you can defend — every claim cited, and nothing ' +
+      'submitted without your call on it.'));
+  }
+
+  const actions = pilotEl('div', 'pilot-entry-actions');
+  const btn = pilotEl('button', 'btn primary', m ? 'Review forecast' : 'Run the weekly forecast');
+  btn.type = 'button';
+  btn.id = 'pilotEntryBtn';
+  btn.addEventListener('click', function () {
+    if (buildPilotModel()) { pilotEnterReview(); }
+    else { btn.disabled = true; runWeeklyForecast(btn); }
+  });
+  actions.appendChild(btn);
+  body.appendChild(actions);
+  card.appendChild(body);
+  host.appendChild(card);
+}
+
 let PILOT_DRAWER = null;
 
 /* The reviewer contract's snake_case labels, written out for the drawer —
@@ -16896,18 +17021,23 @@ function renderPilot() {
   const main = document.getElementById('pilotMain');
   const panel = document.getElementById('pilotPanel');
   const sections = document.getElementById('pilotSections');
+  const entry = document.getElementById('pilotEntry');
   if (!empty || !hero) return;
   const m = buildPilotModel();
-  if (!m) {
+  /* Inc 6 — the entry card gates the dashboard: it shows with no run (the
+     invitation) AND with a run the user has not yet reviewed (the Friday
+     notification, tiles populated). "Review forecast" opens the dashboard. */
+  if (!m || !PILOT_ENTERED) {
     empty.style.display = '';
     hero.style.display = 'none';
     hero.textContent = '';
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
     if (sections) sections.textContent = '';
-    /* No run, no drawer — and no stale drawer state that would pop back
-       open on the next run. */
-    PILOT_DRAWER = null;
+    if (entry) renderPilotEntry(entry, m);
+    /* No dashboard, no drawer — and with no run, no stale drawer state
+       that would pop back open on the next run. */
+    if (!m) PILOT_DRAWER = null;
     renderPilotDrawer(null);
     return;
   }
@@ -16924,6 +17054,9 @@ function renderPilot() {
     ' · ' + m.meta.snapshotDate));
   meta.appendChild(pilotEl('span', 'pilot-pill',
     m.meta.revised ? 'Revised · Maya\'s calls' : 'Draft · manager only'));
+  if (m.meta.restored) {
+    meta.appendChild(pilotEl('span', 'pilot-pill', 'Restored from the log'));
+  }
   hero.appendChild(meta);
 
   const h1 = pilotEl('p', 'pilot-h1',
@@ -17409,9 +17542,8 @@ document.getElementById('topTabs').addEventListener('click', function (ev) {
   if (!tab) return;
   selectTab(tab.getAttribute('data-tab'));
 });
-document.getElementById('pilotRun').addEventListener('click', function () {
-  runWeeklyForecast(this);
-});
+/* P4 Inc 6 — the entry card's button is built per render (its label and
+   behaviour depend on run state), so its listener attaches at creation. */
 /* Inc 4 — closing the drawer: the scrim, or Escape anywhere. */
 document.getElementById('pilotDrawerScrim').addEventListener('click', function () {
   pilotCloseDrawer();

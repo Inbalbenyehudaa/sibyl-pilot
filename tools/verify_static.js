@@ -349,7 +349,8 @@ vm.runInThisContext('globalThis.__X = { DB, isClosed, fixedComponents, buildSiby
   '                    LAST_RUN = null; EVAL_RUNNING = null; }, ' +
   'selectTab, renderTabs, renderPilot, getActiveTab: () => ACTIVE_TAB, ' +
   'buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep, ' +
-  'PILOT_FIELD_LABELS, ' +
+  'PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered: () => PILOT_ENTERED, ' +
+  'setPilotEntered: (v) => { PILOT_ENTERED = !!v; }, ' +
   'pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer: () => PILOT_DRAWER, ' +
   'parseDecisionsGone: typeof parseDecisions === "undefined" };');
 const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, repAccuracyWindow,
@@ -382,7 +383,7 @@ const { DB, isClosed, fixedComponents, buildSibylMessage, forecastHistorySlice, 
         buildDealPayload, getLastRun, clearLastRun, resetEvals,
         selectTab, renderTabs, renderPilot, getActiveTab,
         buildPilotModel, pilotTopdown, moneyShort, pilotFormatInto, pilotToggleRep,
-        PILOT_FIELD_LABELS,
+        PILOT_FIELD_LABELS, pilotEnterReview, getPilotEntered, setPilotEntered,
         pilotOpenDrawer, pilotCloseDrawer, pilotDealAction, getPilotDrawer,
         parseDecisionsGone } = globalThis.__X;
 const OPEN_DEALS = DB['deals_current.csv'].rows.filter(d => !isClosed(d['Stage']));
@@ -2122,7 +2123,7 @@ function check(name, cond, detail) {
     'dataSourceBadge', 'dataSourceBanner', 'recalcMaya', 'mayaRecalcOut',
     'mayaRecalcHint', 'retentionNote', 'writeToken', 'saveWriteToken', 'clearWriteToken',
     'writeTokenState',
-    'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotRun',
+    'consoleRoot', 'viewPilot', 'topTabs', 'tabConsole', 'tabPilot', 'pilotEntry',
     'worldcheckRoot', 'pilotEmpty', 'pilotHero', 'pilotMain', 'pilotPanel', 'pilotSections',
     'pilotDrawer', 'pilotDrawerScrim', 'pilotToasts'];
   const missingIds = IDS.filter(id => html.indexOf('id="' + id + '"') === -1);
@@ -3347,8 +3348,31 @@ function check(name, cond, detail) {
     m35.record.winRatePct === 33,
     m35.record.draftWins + ' draft / ' + m35.record.mayaWins + ' Maya of ' + m35.record.resolved);
 
+  /* countByClass walks the stub tree — dynamic nodes carry classes, not ids. */
+  const countByClass = (node, cls) => {
+    let n = 0;
+    (node.children || []).forEach(c => {
+      if (c.className && c.className.split(' ').indexOf(cls) !== -1) n += 1;
+      n += countByClass(c, cls);
+    });
+    return n;
+  };
+
+  /* 35f/35f2 — P4 Inc 6: the Friday-ritual entry gates the dashboard. With
+     a run and no review yet, the card carries the forecast_notes headline
+     and the three tiles; Review forecast opens the hero. */
   selectTab('pilot');
-  check('35f after a run the pilot swaps the empty state for the hero',
+  check('35f after a run the entry card shows first — tiles, notes headline, Review button',
+    els.pilotEmpty.style.display === '' && els.pilotHero.style.display === 'none' &&
+    countByClass(els.pilotEntry, 'pilot-entry-tile') === 3 &&
+    countByClass(els.pilotEntry, 'pilot-entry-sub') === 1 &&
+    els.pilotEntryBtn.textContent === 'Review forecast' &&
+    getPilotEntered() === false,
+    countByClass(els.pilotEntry, 'pilot-entry-tile') + ' tiles · "' +
+    els.pilotEntryBtn.textContent + '"');
+  pilotEnterReview();
+  check('35f2 Review forecast reveals the dashboard',
+    getPilotEntered() === true &&
     els.pilotEmpty.style.display === 'none' && els.pilotHero.style.display === '' &&
     els.pilotHero.children.length > 0,
     els.pilotHero.children.length + ' hero blocks');
@@ -3379,16 +3403,7 @@ function check(name, cond, detail) {
              host.children[3].children.some &&
              host.children[3].children.some(c => c.className === 'b');
     })(), 'subtitles become bold blocks, content drops a line, inline bold survives');
-  /* 35l-35n — P4 Inc 3: the per-deal review section. countByClass walks the
-     stub tree, since dynamic nodes carry classes rather than ids. */
-  const countByClass = (node, cls) => {
-    let n = 0;
-    (node.children || []).forEach(c => {
-      if (c.className && c.className.split(' ').indexOf(cls) !== -1) n += 1;
-      n += countByClass(c, cls);
-    });
-    return n;
-  };
+  /* 35l-35n — P4 Inc 3: the per-deal review section. */
   check('35l the review section renders one collapsed group per rep',
     els.pilotSections.children.length > 0 &&
     els.pilotRepGroups.children.length === m35.reps.length &&

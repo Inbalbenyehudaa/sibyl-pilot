@@ -6045,6 +6045,92 @@ function renderPilotSections(host, m) {
    path. The form state lives here so it survives the re-renders every
    recorded action triggers. */
 
+/* ---- Inc 6: the Friday-ritual entry state ---------------------------
+   The pilot tab lands on the "#forecast-maya" card, the way Maya would
+   receive the draft. With no run it invites the run; with a run (or a
+   hydrated snapshot) it carries the forecast_notes headline and three
+   stat tiles, and "Review forecast" reveals the dashboard. PILOT_ENTERED
+   is the gate — per page-load, orthogonal to the run state. */
+let PILOT_ENTERED = false;
+
+function pilotEnterReview() {
+  if (!buildPilotModel()) return;
+  PILOT_ENTERED = true;
+  renderPilot();
+}
+
+function renderPilotEntry(host, m) {
+  host.textContent = '';
+  const card = pilotEl('div', 'pilot-entry-card');
+
+  const chrome = pilotEl('div', 'pilot-entry-chrome');
+  ['a', 'b', 'c'].forEach(cl =>
+    chrome.appendChild(pilotEl('span', 'pilot-entry-dot ' + cl, '')));
+  const rows = DB['deals_current.csv'].rows;
+  chrome.appendChild(pilotEl('span', '',
+    '#forecast-maya · Friday 08:00 · week ' + (rows.length ? rows[0]['Forecast Week #'] : '?') +
+    ' · ' + (rows.length ? rows[0]['Snapshot Date'] : '?')));
+  card.appendChild(chrome);
+
+  const body = pilotEl('div', 'pilot-entry-body');
+  if (m && m.meta.revised) {
+    const pillrow = pilotEl('p', '', '');
+    pillrow.appendChild(pilotEl('span', 'pilot-pill', 'Revised · Maya\'s calls'));
+    body.appendChild(pillrow);
+  }
+  body.appendChild(pilotEl('h2', 'pilot-entry-h',
+    m ? 'Your weekly forecast draft is ready, Maya.'
+      : 'Good morning, Maya — Friday\'s draft is one click away.'));
+  if (m) {
+    /* The user-requested subtitle: the forecast_notes headline, verbatim. */
+    const first = String(m.prose.forecastNotes || '').split('\n')
+      .map(s => s.trim()).filter(Boolean)[0];
+    if (first) body.appendChild(pilotEl('p', 'pilot-entry-sub', plainValue(first)));
+    if (m.meta.restored) {
+      body.appendChild(pilotEl('p', 'hint', 'Restored from the pilot decisions log.'));
+    }
+    const tiles = pilotEl('div', 'pilot-entry-tiles');
+    [
+      { k: 'Changed vs last week', v: pilotSigned(m.numbers.deltaFromLastWeek),
+        s: m.numbers.lastSubmitted
+          ? 'Your last submission ' + moneyShort(m.numbers.lastSubmitted.value) +
+            ' · Sibyl ' + moneyShort(m.numbers.suggestedForecast)
+          : 'Sibyl ' + moneyShort(m.numbers.suggestedForecast) },
+      { k: 'Drift from team total', v: pilotSigned(m.numbers.drift),
+        s: 'Team ' + moneyShort(m.numbers.teamBottomsUp) +
+           ' · Sibyl ' + moneyShort(m.numbers.suggestedForecast) },
+      { k: 'Worth challenging',
+        v: m.numbers.challengedCount + ' deal' + (m.numbers.challengedCount === 1 ? '' : 's'),
+        s: moneyShort(m.numbers.challengedAmount) + ' under challenge' }
+    ].forEach(t => {
+      const tile = pilotEl('div', 'pilot-entry-tile');
+      tile.appendChild(pilotEl('p', 'k', t.k));
+      tile.appendChild(pilotEl('p', 'v', t.v));
+      tile.appendChild(pilotEl('p', 's', t.s));
+      tiles.appendChild(tile);
+    });
+    body.appendChild(tiles);
+  } else {
+    body.appendChild(pilotEl('p', 'pilot-entry-sub',
+      'Sibyl reads the CRM snapshot, the health signals, the week-over-week deltas and the ' +
+      'decision record, then drafts a number you can defend — every claim cited, and nothing ' +
+      'submitted without your call on it.'));
+  }
+
+  const actions = pilotEl('div', 'pilot-entry-actions');
+  const btn = pilotEl('button', 'btn primary', m ? 'Review forecast' : 'Run the weekly forecast');
+  btn.type = 'button';
+  btn.id = 'pilotEntryBtn';
+  btn.addEventListener('click', function () {
+    if (buildPilotModel()) { pilotEnterReview(); }
+    else { btn.disabled = true; runWeeklyForecast(btn); }
+  });
+  actions.appendChild(btn);
+  body.appendChild(actions);
+  card.appendChild(body);
+  host.appendChild(card);
+}
+
 let PILOT_DRAWER = null;
 
 /* The reviewer contract's snake_case labels, written out for the drawer —
@@ -6295,18 +6381,23 @@ function renderPilot() {
   const main = document.getElementById('pilotMain');
   const panel = document.getElementById('pilotPanel');
   const sections = document.getElementById('pilotSections');
+  const entry = document.getElementById('pilotEntry');
   if (!empty || !hero) return;
   const m = buildPilotModel();
-  if (!m) {
+  /* Inc 6 — the entry card gates the dashboard: it shows with no run (the
+     invitation) AND with a run the user has not yet reviewed (the Friday
+     notification, tiles populated). "Review forecast" opens the dashboard. */
+  if (!m || !PILOT_ENTERED) {
     empty.style.display = '';
     hero.style.display = 'none';
     hero.textContent = '';
     if (main) { main.style.display = 'none'; }
     if (panel) panel.textContent = '';
     if (sections) sections.textContent = '';
-    /* No run, no drawer — and no stale drawer state that would pop back
-       open on the next run. */
-    PILOT_DRAWER = null;
+    if (entry) renderPilotEntry(entry, m);
+    /* No dashboard, no drawer — and with no run, no stale drawer state
+       that would pop back open on the next run. */
+    if (!m) PILOT_DRAWER = null;
     renderPilotDrawer(null);
     return;
   }
@@ -6323,6 +6414,9 @@ function renderPilot() {
     ' · ' + m.meta.snapshotDate));
   meta.appendChild(pilotEl('span', 'pilot-pill',
     m.meta.revised ? 'Revised · Maya\'s calls' : 'Draft · manager only'));
+  if (m.meta.restored) {
+    meta.appendChild(pilotEl('span', 'pilot-pill', 'Restored from the log'));
+  }
   hero.appendChild(meta);
 
   const h1 = pilotEl('p', 'pilot-h1',
